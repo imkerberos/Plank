@@ -1,0 +1,4 @@
+Material Design icons by Google, licensed under Apache License 2.0.
+Source: https://github.com/google/material-design-icons
+Icons: lock, bedtime, refresh, power_settings_new (48dp, 2x PNG).
+See LICENSE.txt for the license. Icons are displayed as template images.

@@ -1,0 +1,55 @@
+import Foundation
+
+enum PanelHeightPreset: String, CaseIterable {
+    case large, medium, small, custom
+
+    var title: String {
+        switch self {
+        case .large: "Large (80 pt)"
+        case .medium: "Medium (64 pt)"
+        case .small: "Small (48 pt)"
+        case .custom: "Custom"
+        }
+    }
+}
+
+@MainActor
+enum PanelPreferences {
+    static var hideSystemDock: Bool {
+        get { PluginPreferences.defaults.bool(forKey: "hideSystemDock") }
+        set { PluginPreferences.defaults.set(newValue, forKey: "hideSystemDock") }
+    }
+
+    static var isLocked: Bool {
+        get { PluginPreferences.defaults.bool(forKey: "panelLocked") }
+        set { PluginPreferences.defaults.set(newValue, forKey: "panelLocked") }
+    }
+
+    static var heightPreset: PanelHeightPreset {
+        PanelHeightPreset(rawValue: PluginPreferences.defaults.string(forKey: "panelHeightPreset") ?? "") ?? .medium
+    }
+
+    static var customHeight: Double {
+        let value = PluginPreferences.defaults.object(forKey: "panelCustomHeight") as? Double ?? 64
+        return value.isFinite ? min(128, max(32, value)) : 64
+    }
+
+    static var height: CGFloat {
+        switch heightPreset {
+        case .large: 80
+        case .medium: 64
+        case .small: 48
+        case .custom: CGFloat(customHeight)
+        }
+    }
+
+    static func setHeight(preset: PanelHeightPreset, customHeight: Double) {
+        PluginPreferences.defaults.set(preset.rawValue, forKey: "panelHeightPreset")
+        let value = customHeight.isFinite ? min(128, max(32, customHeight)) : 64
+        PluginPreferences.defaults.set(value.rounded(), forKey: "panelCustomHeight")
+    }
+}
+
+enum PanelMetrics {
+    static func buttonSize(for height: CGFloat) -> CGFloat { height }
+}

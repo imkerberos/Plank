@@ -12,6 +12,8 @@ final class PluginSettingsWindowController: NSWindowController {
     private let taskbarStyle = NSPopUpButton()
     private let taskbarWidth = NSTextField()
     private let hideFinder = NSButton(checkboxWithTitle: "Hide Finder", target: nil, action: nil)
+    private let hideLauncherApps = NSButton(checkboxWithTitle: "Hide apps in Launcher", target: nil, action: nil)
+    private let showRunningIndicator = NSButton(checkboxWithTitle: "Show running app indicator", target: nil, action: nil)
     private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
     private let clockStyle = NSPopUpButton()
@@ -51,10 +53,15 @@ final class PluginSettingsWindowController: NSWindowController {
             hideFinder.state = configuration.taskbarHideFinder == true ? .on : .off
             hideFinder.target = self
             hideFinder.action = #selector(save)
+            hideLauncherApps.state = configuration.taskbarHideLauncherApps == true ? .on : .off
+            hideLauncherApps.target = self
+            hideLauncherApps.action = #selector(save)
             options = [SettingsUI.row("Style", control: taskbarStyle),
                        SettingsUI.row("Maximum width", control: size),
                        SettingsUI.help("Choose a width from 80 to 400 pt. Used when titles are shown."),
                        hideFinder,
+                       hideLauncherApps,
+                       SettingsUI.help("Hide apps with shortcuts in any enabled Launcher on this panel."),
                        SettingsUI.help("Finder appears first unless hidden. Other apps keep their window opening order."),
                        SettingsUI.help("Click the active app to minimize its window. Click again to restore. Minimizing and Dock notification badges require Accessibility access.")]
         } else if configuration.kind == "separator" {
@@ -97,7 +104,12 @@ final class PluginSettingsWindowController: NSWindowController {
             options = [SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
                        SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
         } else if configuration.kind == "launcher" {
-            options = [SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
+            showRunningIndicator.state = configuration.launcherShowRunningIndicator == true ? .on : .off
+            showRunningIndicator.target = self
+            showRunningIndicator.action = #selector(save)
+            options = [showRunningIndicator,
+                       SettingsUI.help("Display a small dot below the icon while the app is running."),
+                       SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
                        SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts."),
                        SettingsUI.help("App badges mirror the system Dock and require Accessibility access. Apps without an accessible Dock badge show no badge.")]
         } else {
@@ -143,6 +155,7 @@ final class PluginSettingsWindowController: NSWindowController {
                 config.expand = expand.state == .on
             }
             if config.kind == "taskbar" {
+                config.taskbarHideLauncherApps = hideLauncherApps.state == .on
                 config.taskbarHideFinder = hideFinder.state == .on
                 config.taskbarStyle = taskbarStyle.indexOfSelectedItem == 1 ? "iconAndTitle" : "icon"
                 config.taskbarMaximumWidth = taskbarWidth.doubleValue
@@ -155,6 +168,9 @@ final class PluginSettingsWindowController: NSWindowController {
                 }
                 config.showSeconds = seconds.state == .on
                 config.use24HourTime = use24HourTime.state == .on
+            }
+            if config.kind == "launcher" {
+                config.launcherShowRunningIndicator = showRunningIndicator.state == .on
             }
         }
         updateControls()

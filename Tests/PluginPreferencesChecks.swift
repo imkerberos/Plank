@@ -236,14 +236,24 @@ struct PluginPreferencesChecks {
             precondition(PluginPreferences.order == ["taskbar"])
             precondition(PluginPreferences.configuration("taskbar")?.taskbarShowsTitles == false)
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 180)
+            precondition(PluginPreferences.configuration("taskbar")?.taskbarHideLauncherApps != true)
             let other = PluginPreferences.add(kind: "taskbar")
             PluginPreferences.update("taskbar") {
                 $0.taskbarStyle = "iconAndTitle"
                 $0.taskbarMaximumWidth = 120
+                $0.taskbarHideLauncherApps = true
             }
             precondition(PluginPreferences.configuration("taskbar")?.taskbarShowsTitles == true)
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 120)
             precondition(PluginPreferences.configuration(other)?.taskbarShowsTitles == false)
+            precondition(PluginPreferences.configuration("taskbar")?.taskbarHideLauncherApps == true)
+            precondition(PluginPreferences.configuration(other)?.taskbarHideLauncherApps != true)
+            let launcher = PluginPreferences.add(kind: "launcher")
+            let otherLauncher = PluginPreferences.add(kind: "launcher")
+            precondition(PluginPreferences.configuration(launcher)?.launcherShowRunningIndicator != true)
+            PluginPreferences.update(launcher) { $0.launcherShowRunningIndicator = true }
+            precondition(PluginPreferences.configuration(launcher)?.launcherShowRunningIndicator == true)
+            precondition(PluginPreferences.configuration(otherLauncher)?.launcherShowRunningIndicator != true)
             PluginPreferences.update("taskbar") { $0.taskbarMaximumWidth = -1 }
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 80)
             PluginPreferences.update("taskbar") { $0.taskbarMaximumWidth = 900 }

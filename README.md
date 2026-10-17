@@ -107,6 +107,8 @@ Right-click the Trash icon for **Open Trash** or **Empty Trash…**, including w
 
 Finder appears first by default. Enable **Hide Finder** in each Taskbar plugin's settings to remove it from that Taskbar. Other applications retain their window opening order.
 
+Enable **Hide apps in Launcher** to omit applications with shortcuts in any enabled Launcher on the panel. Disabled Launchers are ignored. Each Launcher also offers **Show running app indicator**, which draws a small dot below running applications. Both options default to off and are saved independently for each plugin.
+
 ### App Badges
 
 Launcher and Taskbar mirror app badges exposed by the system Dock, including when the Dock is auto-hidden. Badges appear on the icon, including Taskbar's Icons and Titles mode. Counts above 99 display as **99+**; long nonnumeric labels display as a red dot. The full original label remains available to accessibility tools.

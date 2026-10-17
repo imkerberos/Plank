@@ -31,6 +31,10 @@ final class LauncherPlugin: NSObject, PanelPlugin {
             child.removeFromSuperview()
         }
         let paths = LauncherStore.paths(for: id)
+        let showRunning = PluginPreferences.configuration(id)?.launcherShowRunningIndicator == true
+        let runningPaths = Set(NSWorkspace.shared.runningApplications.compactMap {
+            $0.bundleURL?.standardizedFileURL.resolvingSymlinksInPath().path
+        })
         if paths.isEmpty {
             let hint = NSTextField(labelWithString: "＋ Drop Apps Here")
             hint.textColor = .secondaryLabelColor
@@ -39,6 +43,8 @@ final class LauncherPlugin: NSObject, PanelPlugin {
         }
         for path in paths {
             let button = LauncherButton(path: path, size: buttonSize)
+            button.showsRunningIndicator = showRunning && runningPaths.contains(
+                URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path)
             button.onOpen = { [weak self] in self?.openApplication(path) }
             button.onDragPreview = { [weak self] point in self?.dropView.previewReorder(at: point) }
             button.onDragFinished = { [weak self] point in
@@ -97,6 +103,7 @@ final class LauncherPlugin: NSObject, PanelPlugin {
 
 @MainActor
 private final class LauncherButton: NSButton {
+    var showsRunningIndicator = false { didSet { needsDisplay = true } }
     var onOpen: (() -> Void)?
     var onDragPreview: ((NSPoint) -> Void)?
     var onDragFinished: ((NSPoint?) -> Void)?
@@ -128,6 +135,16 @@ private final class LauncherButton: NSButton {
     }
 
     required init?(coder: NSCoder) { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard showsRunningIndicator else { return }
+        NSColor.labelColor.withAlphaComponent(0.85).setFill()
+        let diameter: CGFloat = 4
+        let y = isFlipped ? bounds.maxY - diameter - 1 : bounds.minY + 1
+        NSBezierPath(ovalIn: NSRect(x: bounds.midX - diameter / 2, y: y,
+                                  width: diameter, height: diameter)).fill()
+    }
     override func mouseDown(with event: NSEvent) {
         pressOrigin = event.locationInWindow
         isReordering = false

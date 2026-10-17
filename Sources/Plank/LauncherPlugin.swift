@@ -116,6 +116,8 @@ private final class LauncherButton: NSButton {
         let name = FileManager.default.displayName(atPath: path)
         toolTip = "\(name) · Drag to reorder or outside the panel to remove shortcut"
         setAccessibilityLabel("Launch \(name)")
+        AppBadgeView.attach(to: self, applicationURL: URL(fileURLWithPath: path),
+                            iconSize: max(24, size - 8), buttonSize: size)
         target = self
         action = #selector(openApplication)
         translatesAutoresizingMaskIntoConstraints = false

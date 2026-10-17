@@ -9,6 +9,7 @@ struct PluginPreferencesChecks {
         testDefaultPluginOrder()
         testTaskbarWindowOrder()
         testClockStyles()
+        testAppBadgeContent()
         testEnglishDefaultNames()
         testRepeatedSeparatorsKeepIndependentSettingsAndOrder()
         testDeletingLastPluginDoesNotRestoreDefaults()
@@ -105,6 +106,22 @@ struct PluginPreferencesChecks {
             PluginPreferences.update(second) { $0.clockStyle = "unknown" }
             precondition(PluginPreferences.configuration(second)?.clockDisplayStyle == .digital)
         }
+    }
+
+    @MainActor
+    static func testAppBadgeContent() {
+        precondition(AppBadgeContent("  \n") == nil)
+        precondition(AppBadgeContent("17")?.displayText == "17")
+        precondition(AppBadgeContent("99")?.displayText == "99")
+        precondition(AppBadgeContent("100")?.displayText == "99+")
+        precondition(AppBadgeContent("1,234")?.displayText == "99+")
+        precondition(AppBadgeContent("00005")?.displayText == "5")
+        precondition(AppBadgeContent("000")?.displayText == "0")
+        precondition(AppBadgeContent(String(repeating: "9", count: 100))?.displayText == "99+")
+        precondition(AppBadgeContent("•")?.displayText == "")
+        precondition(AppBadgeContent("!")?.displayText == "!")
+        precondition(AppBadgeContent("New messages")?.displayText == "")
+        precondition(AppBadgeContent(" 17 ")?.label == "17")
     }
 
     @MainActor

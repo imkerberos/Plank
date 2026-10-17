@@ -50,6 +50,8 @@ final class ApplicationButton: NSButton, NSDraggingSource {
                 label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
                 label.centerYAnchor.constraint(equalTo: centerYAnchor)
             ])
+            AppBadgeView.attach(to: self, applicationURL: application.bundleURL,
+                                iconSize: iconSize, buttonSize: buttonSize, iconView: icon)
         } else {
             if let icon = application.icon?.copy() as? NSImage {
                 icon.size = NSSize(width: max(24, buttonSize - 20), height: max(24, buttonSize - 20))
@@ -58,6 +60,8 @@ final class ApplicationButton: NSButton, NSDraggingSource {
             imagePosition = .imageOnly
             imageScaling = .scaleProportionallyDown
             buttonWidth = buttonSize
+            AppBadgeView.attach(to: self, applicationURL: application.bundleURL,
+                                iconSize: max(24, buttonSize - 20), buttonSize: buttonSize)
         }
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: buttonWidth),

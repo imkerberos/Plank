@@ -11,6 +11,7 @@ final class PluginSettingsWindowController: NSWindowController {
     private let expand = NSButton(checkboxWithTitle: "Expand to fill remaining panel space", target: nil, action: nil)
     private let taskbarStyle = NSPopUpButton()
     private let taskbarWidth = NSTextField()
+    private let hideFinder = NSButton(checkboxWithTitle: "Hide Finder", target: nil, action: nil)
     private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
     private let clockStyle = NSPopUpButton()
@@ -47,10 +48,15 @@ final class PluginSettingsWindowController: NSWindowController {
             taskbarWidth.setAccessibilityLabel("Maximum app button width")
             let size = NSStackView(views: [taskbarWidth, SettingsUI.help("pt")])
             size.spacing = 6
+            hideFinder.state = configuration.taskbarHideFinder == true ? .on : .off
+            hideFinder.target = self
+            hideFinder.action = #selector(save)
             options = [SettingsUI.row("Style", control: taskbarStyle),
                        SettingsUI.row("Maximum width", control: size),
                        SettingsUI.help("Choose a width from 80 to 400 pt. Used when titles are shown."),
-                       SettingsUI.help("Click the active app to minimize its window. Click again to restore. Minimizing requires Accessibility access.")]
+                       hideFinder,
+                       SettingsUI.help("Finder appears first unless hidden. Other apps keep their window opening order."),
+                       SettingsUI.help("Click the active app to minimize its window. Click again to restore. Minimizing and Dock notification badges require Accessibility access.")]
         } else if configuration.kind == "separator" {
             sectionTitle = "Layout"
             style.addItems(withTitles: ["Line", "Space"])
@@ -92,7 +98,8 @@ final class PluginSettingsWindowController: NSWindowController {
                        SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
         } else if configuration.kind == "launcher" {
             options = [SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
-                       SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts.")]
+                       SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts."),
+                       SettingsUI.help("App badges mirror the system Dock and require Accessibility access. Apps without an accessible Dock badge show no badge.")]
         } else {
             options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash."),
                        SettingsUI.help("Empty Trash asks for confirmation before permanently deleting items. Finder automation permission is required.")]
@@ -136,6 +143,7 @@ final class PluginSettingsWindowController: NSWindowController {
                 config.expand = expand.state == .on
             }
             if config.kind == "taskbar" {
+                config.taskbarHideFinder = hideFinder.state == .on
                 config.taskbarStyle = taskbarStyle.indexOfSelectedItem == 1 ? "iconAndTitle" : "icon"
                 config.taskbarMaximumWidth = taskbarWidth.doubleValue
                 config.taskbarMaximumWidth = config.taskbarButtonMaximumWidth

@@ -235,12 +235,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             else { self?.panel.orderFrontRegardless() }
         }
         refresh()
-        systemDock.start()
-        if !systemDock.isFullScreen { panel.orderFrontRegardless() }
+        Task { @MainActor [weak self] in
+            // Read existing badges before hiding the system Dock restarts it.
+            await DockBadgeCenter.shared.refreshNow()
+            guard let self else { return }
+            self.systemDock.start()
+            if !self.systemDock.isFullScreen { self.panel.orderFrontRegardless() }
+        }
     }
 
     private func refresh() {
         let configurations = PluginPreferences.configurations
+        if configurations.contains(where: { ["launcher", "taskbar"].contains($0.kind) && $0.enabled }) {
+            DockBadgeCenter.shared.start()
+        } else {
+            DockBadgeCenter.shared.stop()
+        }
         let taskbarOrder = TaskbarWindowOrder.shared
         taskbarOrder.onChange = { [weak self] in self?.refresh() }
         if configurations.contains(where: { $0.kind == "taskbar" && $0.enabled }) {
@@ -337,6 +347,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        DockBadgeCenter.shared.stop()
         TaskbarWindowOrder.shared.stop()
         systemDock.stop()
         for plugin in plugins { plugin.stop() }

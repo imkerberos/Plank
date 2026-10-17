@@ -38,9 +38,12 @@ final class TaskbarPlugin: PanelPlugin {
             stack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
-        let applications = TaskbarWindowOrder.shared.sorted(NSWorkspace.shared.runningApplications
+        var applications = TaskbarWindowOrder.shared.sorted(NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier })
         let config = PluginPreferences.configuration(id)
+        let finder = applications.filter { $0.bundleIdentifier == "com.apple.finder" }
+        applications.removeAll { $0.bundleIdentifier == "com.apple.finder" }
+        if config?.taskbarHideFinder != true { applications.insert(contentsOf: finder, at: 0) }
         for application in applications {
             stack.addArrangedSubview(ApplicationButton(
                 application: application,

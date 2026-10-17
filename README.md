@@ -105,6 +105,16 @@ Right-click the Trash icon for **Open Trash** or **Empty Trash…**, including w
 
 ## Taskbar
 
+Finder appears first by default. Enable **Hide Finder** in each Taskbar plugin's settings to remove it from that Taskbar. Other applications retain their window opening order.
+
+### App Badges
+
+Launcher and Taskbar mirror app badges exposed by the system Dock, including when the Dock is auto-hidden. Badges appear on the icon, including Taskbar's Icons and Titles mode. Counts above 99 display as **99+**; long nonnumeric labels display as a red dot. The full original label remains available to accessibility tools.
+
+Reading badges requires Accessibility access for Plank. Grant it in System Settings → Privacy & Security → Accessibility (also accessible from panel settings). Badges update approximately once per second without rebuilding the panel. An app must have a Dock item that exposes an `AXStatusLabel`; apps that paint custom icons without exposing a label, or have no accessible Dock item, cannot be mirrored. Plank does not read notification databases or infer unread counts. If access is unavailable, buttons work normally without badges.
+
+### Ordering and Appearance
+
 Taskbar groups buttons by application and orders them by when Plank first observes each application's earliest remaining window. Switching the foreground app does not reorder buttons. Windows already present when Plank starts, or first detected in the same polling cycle, have no known historical order and fall back to application-name sorting. Apps without windows follow apps with windows. Detection runs every 0.5 seconds and includes minimized windows and windows in other Spaces.
 
 Double-click Taskbar in the Plugins list, or right-click its handle and choose **Plugin Settings…**, to select **Icons Only** or **Icons and Titles**. Titles use the application name, with the icon on the left. Labeled buttons size to their content up to a configurable maximum of 80–400 pt, defaulting to 180 pt. Long titles are truncated; hover to see the full name. Icon-only buttons use the panel height as their width.

@@ -14,6 +14,7 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     var clockStyle: String?
     var taskbarStyle: String?
     var taskbarMaximumWidth: Double?
+    var taskbarHideFinder: Bool?
 
     var taskbarShowsTitles: Bool { taskbarStyle == "iconAndTitle" }
     var clockDisplayStyle: ClockStyle { ClockStyle(rawValue: clockStyle ?? "") ?? .digital }

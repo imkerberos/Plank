@@ -45,7 +45,15 @@ final class LauncherPlugin: NSObject, PanelPlugin {
                 guard let self else { return }
                 self.dropView.clearReorderPreview()
                 guard !PanelPreferences.isLocked, let point,
-                      let gap = self.dropView.insertionIndex(at: point),
+                      let content = self.dropView.window?.contentView else { return }
+                if !content.bounds.contains(content.convert(point, from: nil)) {
+                    // Removing a launcher entry only edits its saved shortcut
+                    // list. Never move, delete, or quit the application itself.
+                    LauncherStore.remove(path, from: self.id)
+                    Task { @MainActor [weak self] in self?.onChange?() }
+                    return
+                }
+                guard let gap = self.dropView.insertionIndex(at: point),
                       LauncherStore.move(path, to: gap, in: self.id) else { return }
                 Task { @MainActor [weak self] in self?.onChange?() }
             }
@@ -106,7 +114,7 @@ private final class LauncherButton: NSButton {
         isBordered = false
         wantsLayer = true
         let name = FileManager.default.displayName(atPath: path)
-        toolTip = "\(name) · Drag to reorder; right-click to remove shortcut"
+        toolTip = "\(name) · Drag to reorder or outside the panel to remove shortcut"
         setAccessibilityLabel("Launch \(name)")
         target = self
         action = #selector(openApplication)

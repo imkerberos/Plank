@@ -31,6 +31,7 @@ enum SystemSessionAction: String, CaseIterable {
             guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
         let command: String
+        let recipient = "System Events"
         switch self {
         case .lock: command = "key code 12 using {control down, command down}"
         case .sleep: command = "sleep"
@@ -38,12 +39,15 @@ enum SystemSessionAction: String, CaseIterable {
         case .shutdown: command = "shut down"
         }
         var error: NSDictionary?
-        NSAppleScript(source: "tell application \"System Events\" to \(command)")?.executeAndReturnError(&error)
+        guard let script = NSAppleScript(source: "tell application \"\(recipient)\" to \(command)") else { return }
+        script.executeAndReturnError(&error)
         if let error {
+            if (error[NSAppleScript.errorNumber] as? NSNumber)?.intValue == -128 { return }
             let alert = NSAlert()
             alert.messageText = "Unable to \(title.replacingOccurrences(of: "…", with: ""))"
             alert.informativeText = (error[NSAppleScript.errorMessage] as? String ?? "The system could not complete this action.")
-                + "\n\nAllow Plank to control System Events in Privacy & Security > Automation. Lock Screen also requires Accessibility access."
+                + "\n\nAllow Plank to control \(recipient) in Privacy & Security > Automation."
+                + (self == .lock ? " Lock Screen also requires Accessibility access." : "")
             alert.runModal()
         }
     }

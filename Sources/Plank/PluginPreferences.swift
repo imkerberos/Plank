@@ -11,10 +11,12 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     var showSeconds = false
     // Optional fields keep configurations saved by earlier versions decodable.
     var use24HourTime: Bool?
+    var clockStyle: String?
     var taskbarStyle: String?
     var taskbarMaximumWidth: Double?
 
     var taskbarShowsTitles: Bool { taskbarStyle == "iconAndTitle" }
+    var clockDisplayStyle: ClockStyle { ClockStyle(rawValue: clockStyle ?? "") ?? .digital }
     var taskbarButtonMaximumWidth: Double {
         let value = taskbarMaximumWidth ?? 180
         return value.isFinite ? min(400, max(80, value)) : 180

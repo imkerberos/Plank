@@ -8,6 +8,7 @@ struct PluginPreferencesChecks {
         testMigratesExistingOrderAndHiddenState()
         testDefaultPluginOrder()
         testTaskbarWindowOrder()
+        testClockStyles()
         testEnglishDefaultNames()
         testRepeatedSeparatorsKeepIndependentSettingsAndOrder()
         testDeletingLastPluginDoesNotRestoreDefaults()
@@ -77,6 +78,33 @@ struct PluginPreferencesChecks {
         var existing = TaskbarOrderState()
         existing.observe([initial, earlier, later])
         precondition(existing.rank(for: 1) == existing.rank(for: 3)) // Unknown history falls back to names.
+    }
+
+    @MainActor
+    static func testClockStyles() {
+        let midnight = ClockTime(hour: 0, minute: 0, second: 0)
+        precondition(midnight.binaryDigits(use24HourTime: true, showSeconds: true) == [0, 0, 0, 0, 0, 0])
+        precondition(midnight.binaryDigits(use24HourTime: false, showSeconds: false) == [1, 2, 0, 0])
+        let evening = ClockTime(hour: 23, minute: 59, second: 48)
+        precondition(evening.binaryDigits(use24HourTime: true, showSeconds: true) == [2, 3, 5, 9, 4, 8])
+        precondition(evening.binaryDigits(use24HourTime: false, showSeconds: false) == [1, 1, 5, 9])
+        for digit in 0...9 {
+            let decoded = (0..<4).reduce(0) { result, row in
+                result + (ClockTime.bitIsSet(digit, row: row) ? 1 << (3 - row) : 0)
+            }
+            precondition(decoded == digit)
+        }
+        withIsolatedPreferences {
+            let old = #"[{"id":"clock","kind":"clock","name":"Clock","enabled":true,"separatorStyle":"line","spaceWidth":24,"expand":false,"showSeconds":true}]"#
+            PluginPreferences.defaults.set(Data(old.utf8), forKey: "pluginConfigurations")
+            precondition(PluginPreferences.configuration("clock")?.clockDisplayStyle == .digital)
+            let second = PluginPreferences.add(kind: "clock")
+            PluginPreferences.update(second) { $0.clockStyle = "binary"; $0.use24HourTime = true }
+            precondition(PluginPreferences.configuration("clock")?.clockDisplayStyle == .digital)
+            precondition(PluginPreferences.configuration(second)?.clockDisplayStyle == .binary)
+            PluginPreferences.update(second) { $0.clockStyle = "unknown" }
+            precondition(PluginPreferences.configuration(second)?.clockDisplayStyle == .digital)
+        }
     }
 
     @MainActor

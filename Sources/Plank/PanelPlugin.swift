@@ -68,58 +68,6 @@ final class SeparatorPlugin: PanelPlugin {
 }
 
 @MainActor
-final class ClockPlugin: PanelPlugin {
-    let id: String
-    private let label = NSTextField(labelWithString: "")
-    private var timer: Timer?
-    private let timeFormatter = DateFormatter()
-    var onWidthChanged: (() -> Void)?
-    var view: NSView { label }
-
-    init(id: String) {
-        self.id = id
-        label.font = .monospacedDigitSystemFont(ofSize: 14, weight: .medium)
-        label.alignment = .center
-        label.setContentHuggingPriority(.required, for: .horizontal)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal)
-    }
-
-    func refresh() {
-        updateTime()
-        if timer == nil {
-            let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.updateTime() }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            self.timer = timer
-        }
-    }
-
-    private func updateTime() {
-        let oldWidth = label.intrinsicContentSize.width
-        let configuration = PluginPreferences.configuration(id)
-        let seconds = configuration?.showSeconds ?? false
-        let locale = Locale(identifier: "en_US")
-        let now = Date()
-        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
-        timeFormatter.timeZone = .current
-        timeFormatter.dateFormat = configuration?.use24HourTime == true
-            ? (seconds ? "HH:mm:ss" : "HH:mm")
-            : (seconds ? "h:mm:ss a" : "h:mm a")
-        label.stringValue = timeFormatter.string(from: now)
-        label.toolTip = now.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(locale))
-        if abs(label.intrinsicContentSize.width - oldWidth) > 0.5 {
-            Task { @MainActor [weak self] in self?.onWidthChanged?() }
-        }
-    }
-
-    func stop() {
-        timer?.invalidate()
-        timer = nil
-    }
-}
-
-@MainActor
 final class TrashPlugin: NSObject, PanelPlugin {
     let id: String
     private let button = TrashButton()

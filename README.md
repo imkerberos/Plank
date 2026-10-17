@@ -88,6 +88,7 @@ Right-click the panel or its left-hand handle—the three vertical dots—and ch
 
 - Drag rows to reorder plugins. The panel updates immediately and saves the order.
 - Double-click a row to open settings for that instance. Every plugin supports a custom name. Clock settings include **Use 24-Hour Time** and **Show Seconds**; the clock width follows the displayed text.
+- Clock offers **Digital**, **Analog**, and **Binary** styles. Digital and Binary support 12-hour or 24-hour time. Analog uses a 12-hour dial, with an optional second hand. Binary encodes each decimal digit in a column of dots weighted 8, 4, 2, 1 from top to bottom; groups are hours, minutes, and optional seconds. Hover over any style for the full date and readable time. Existing clocks default to Digital, and each instance saves its own style.
 - Choose **Add…** to add Taskbar, Separator, Clock, Trash, Launcher, or iMenu. Multiple instances of the same type are supported, each with independent settings.
 - Select a row and choose **Remove** to remove that instance.
 - Hidden instances remain in the list. Right-click a hidden row and choose **Show Plugin** to restore it.
@@ -118,7 +119,7 @@ Add **iMenu** in the Plugins window, then click its four-square icon to open a c
 
 iMenu uses an arrowless rounded floating window that sits flush against the panel. It adjusts its position near the left and right screen edges, retaining an 8 pt screen margin.
 
-The application count and usage hints appear beside the **Applications** heading. The bottom row provides **Lock**, **Sleep**, **Restart…**, and **Shut Down…**, using Google Material Design icons. Restart and Shut Down display a confirmation dialog with Cancel as the default. System actions require permission to control System Events under System Settings → Privacy & Security → Automation. Lock also requires Accessibility access. Icons and their Apache 2.0 license are bundled with the app; see `Sources/Plank/Resources/MaterialIcons/NOTICE.txt` for attribution.
+The application count and usage hints appear beside the **Applications** heading. The bottom row provides **Lock**, **Sleep**, **Restart…**, and **Shut Down…**, using Google Material Design icons. Restart and Shut Down display a confirmation dialog with Cancel as the default. These actions use AppleScript to control System Events and require permission under System Settings → Privacy & Security → Automation. Lock also requires Accessibility access. Icons and their Apache 2.0 license are bundled with the app; see `Sources/Plank/Resources/MaterialIcons/NOTICE.txt` for attribution.
 
 The application catalog refreshes in the background whenever the menu opens. It scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. Scanning skips helpers inside app bundles, hidden files, and background apps, and deduplicates paths. The menu adapts to available screen space without entering full screen.
 
@@ -129,9 +130,11 @@ Choose **Add… → Launcher** in the Plugins window. Drag one or more `.app` bu
 - Click a shortcut to open or activate its app. Buttons highlight when pressed and briefly after release.
 - Right-click an icon and choose **Remove Shortcut** to remove only the shortcut.
 - Adding the same app to a Launcher again does not create duplicates. Multiple Launchers keep independent shortcut lists.
-- Drag icons horizontally to reorder them. An insertion marker shows the destination. Release to save, or release outside Launcher to cancel. Locking the panel disables reordering but still allows launching apps.
+- Drag icons horizontally to reorder them. An insertion marker shows the destination. Release outside the panel to remove the Launcher shortcut; the application itself is not deleted or quit. Releasing elsewhere inside the panel, outside Launcher, cancels the reorder. Locking the panel disables dragging but still allows launching apps.
 - Shortcuts persist across restarts. If an app is moved or deleted, remove its old shortcut and add it again.
 - Only local application bundles are accepted. A drop containing ordinary files is rejected as a whole.
+
+Dragging a Taskbar button outside the panel has no effect. Taskbar supports drops into Launcher within Plank; it does not offer file drops to other applications.
 
 ## Handles and Moving Plugins
 

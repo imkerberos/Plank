@@ -13,11 +13,13 @@ final class PluginSettingsWindowController: NSWindowController {
     private let taskbarWidth = NSTextField()
     private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
+    private let clockStyle = NSPopUpButton()
+    private let clockHint = SettingsUI.help("")
 
     init(configuration: PluginConfiguration, onChange: @escaping () -> Void) {
         pluginID = configuration.id
         self.onChange = onChange
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: configuration.kind == "taskbar" || configuration.kind == "separator" ? 560 : 430),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: configuration.kind == "taskbar" || configuration.kind == "separator" ? 560 : (configuration.kind == "clock" ? 520 : 430)),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "\(configuration.name) Settings"
         window.isReleasedWhenClosed = false
@@ -70,20 +72,27 @@ final class PluginSettingsWindowController: NSWindowController {
                        SettingsUI.row("Fixed width", control: size), expand,
                        SettingsUI.help("Line fills the panel height. Space adds 8–400 pt of blank space, or expands to fill the remaining width.")]
         } else if configuration.kind == "clock" {
-            sectionTitle = "Time Format"
+            sectionTitle = "Clock Display"
+            clockStyle.addItems(withTitles: ClockStyle.allCases.map(\.title))
+            clockStyle.selectItem(at: ClockStyle.allCases.firstIndex(of: configuration.clockDisplayStyle) ?? 0)
+            clockStyle.target = self
+            clockStyle.action = #selector(save)
+            clockStyle.widthAnchor.constraint(equalToConstant: 160).isActive = true
+            clockStyle.setAccessibilityLabel("Clock display style")
             use24HourTime.state = configuration.use24HourTime == true ? .on : .off
             use24HourTime.target = self
             use24HourTime.action = #selector(save)
             seconds.state = configuration.showSeconds ? .on : .off
             seconds.target = self
             seconds.action = #selector(save)
-            options = [use24HourTime, seconds, SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the full date.")]
+            options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
+                       SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
         } else if configuration.kind == "imenu" {
             options = [SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
                        SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
         } else if configuration.kind == "launcher" {
             options = [SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
-                       SettingsUI.help("Click to launch, drag to reorder, or right-click to remove a shortcut. Each Launcher keeps its own shortcuts.")]
+                       SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts.")]
         } else {
             options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash."),
                        SettingsUI.help("Empty Trash asks for confirmation before permanently deleting items. Finder automation permission is required.")]
@@ -105,6 +114,14 @@ final class PluginSettingsWindowController: NSWindowController {
         taskbarWidth.isEnabled = taskbarStyle.indexOfSelectedItem == 1
         expand.isEnabled = style.indexOfSelectedItem == 1
         width.isEnabled = expand.isEnabled && expand.state != .on
+        let selected = ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem)
+            ? ClockStyle.allCases[clockStyle.indexOfSelectedItem] : .digital
+        use24HourTime.isEnabled = selected != .analog
+        switch selected {
+        case .digital: clockHint.stringValue = "Display the time as text in 12-hour or 24-hour format."
+        case .analog: clockHint.stringValue = "A classic 12-hour dial. Show Seconds adds a second hand."
+        case .binary: clockHint.stringValue = "Each column encodes one decimal digit. Read lit dots from top to bottom as 8, 4, 2, 1. Groups are hours, minutes, and optional seconds."
+        }
     }
 
     @objc private func save() {
@@ -125,6 +142,9 @@ final class PluginSettingsWindowController: NSWindowController {
                 taskbarWidth.doubleValue = config.taskbarButtonMaximumWidth
             }
             if config.kind == "clock" {
+                if ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem) {
+                    config.clockStyle = ClockStyle.allCases[clockStyle.indexOfSelectedItem].rawValue
+                }
                 config.showSeconds = seconds.state == .on
                 config.use24HourTime = use24HourTime.state == .on
             }

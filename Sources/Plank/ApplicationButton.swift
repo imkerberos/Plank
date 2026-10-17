@@ -103,7 +103,11 @@ final class ApplicationButton: NSButton, NSDraggingSource {
     }
 
     func draggingSession(_ session: NSDraggingSession,
-                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .copy }
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        // Only Launcher drops inside Plank are supported. Dropping onto Finder,
+        // the Dock, or another app must not copy, move, or remove anything.
+        context == .withinApplication ? .copy : []
+    }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint,
                          operation: NSDragOperation) {

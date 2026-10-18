@@ -3,6 +3,23 @@ import ApplicationServices
 
 @MainActor
 enum TaskbarWindowController {
+    /// Restore and raise the application's standard windows, including minimized ones.
+    static func showWindows(of application: NSRunningApplication) {
+        guard !application.isTerminated else { return }
+        application.unhide()
+        application.activate()
+        guard AXIsProcessTrusted() else { return }
+        let app = AXUIElementCreateApplication(application.processIdentifier)
+        AXUIElementSetMessagingTimeout(app, 0.2)
+        guard let windows = attribute(app, kAXWindowsAttribute) as? [AXUIElement] else { return }
+        for window in windows where attribute(window, kAXSubroleAttribute) as? String == kAXStandardWindowSubrole {
+            if (attribute(window, kAXMinimizedAttribute) as? NSNumber)?.boolValue == true {
+                AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+            }
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        }
+    }
+
     /// A second click minimizes the active window. Other clicks retain the
     /// Launch Services reopen behavior, including restoring minimized windows.
     static func minimizeFocusedWindow(of application: NSRunningApplication) -> Bool {

@@ -43,6 +43,7 @@ final class LauncherPlugin: NSObject, PanelPlugin {
         }
         for path in paths {
             let button = LauncherButton(path: path, size: buttonSize)
+            button.includesApplicationMenu = showRunning
             button.showsRunningIndicator = showRunning && runningPaths.contains(
                 URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path)
             button.onOpen = { [weak self] in self?.openApplication(path) }
@@ -103,6 +104,13 @@ final class LauncherPlugin: NSObject, PanelPlugin {
 
 @MainActor
 private final class LauncherButton: NSButton {
+    private let applicationURL: URL
+    var includesApplicationMenu = false
+    private var runningApplication: NSRunningApplication? {
+        NSWorkspace.shared.runningApplications.first {
+            $0.bundleURL?.standardizedFileURL.resolvingSymlinksInPath() == applicationURL && !$0.isTerminated
+        }
+    }
     var showsRunningIndicator = false { didSet { needsDisplay = true } }
     var onOpen: (() -> Void)?
     var onDragPreview: ((NSPoint) -> Void)?
@@ -112,6 +120,7 @@ private final class LauncherButton: NSButton {
     private var feedbackTask: Task<Void, Never>?
 
     init(path: String, size: CGFloat) {
+        applicationURL = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
         super.init(frame: .zero)
         let icon = NSWorkspace.shared.icon(forFile: path)
         icon.size = NSSize(width: max(24, size - 8), height: max(24, size - 8))
@@ -182,7 +191,50 @@ private final class LauncherButton: NSButton {
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        if let menu { PanelMenu.show(menu, from: self, event: event) }
+        guard let menu = menu?.copy() as? NSMenu else { return }
+        if includesApplicationMenu {
+            menu.autoenablesItems = false
+            menu.addItem(.separator())
+            if let application = runningApplication {
+                addApplicationItem("Show Windows", action: #selector(showWindows), to: menu)
+                addApplicationItem(application.isHidden ? "Unhide" : "Hide", action: #selector(toggleHidden), to: menu)
+                addApplicationItem("Show in Finder", action: #selector(revealApplication), to: menu)
+                if application.bundleIdentifier != "com.apple.finder" {
+                    menu.addItem(.separator())
+                    addApplicationItem("Quit", action: #selector(quitApplication), to: menu)
+                }
+            } else {
+                addApplicationItem("Open", action: #selector(openApplication), to: menu)
+                addApplicationItem("Show in Finder", action: #selector(revealApplication), to: menu)
+            }
+        }
+        PanelMenu.show(menu, from: self, event: event)
+    }
+
+    private func addApplicationItem(_ title: String, action: Selector, to menu: NSMenu) {
+        let item = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
+        item.target = self
+    }
+
+    @objc private func showWindows() {
+        if let application = runningApplication { TaskbarWindowController.showWindows(of: application) }
+        // A reopen event also handles running apps with no remaining windows.
+        onOpen?()
+    }
+
+    @objc private func toggleHidden() {
+        guard let application = runningApplication else { return }
+        if application.isHidden { application.unhide(); application.activate() }
+        else { application.hide() }
+    }
+
+    @objc private func revealApplication() {
+        NSWorkspace.shared.activateFileViewerSelecting([applicationURL])
+    }
+
+    @objc private func quitApplication() {
+        guard let application = runningApplication, application.bundleIdentifier != "com.apple.finder" else { return }
+        application.terminate()
     }
 
     private func setPressedFeedback(_ pressed: Bool) {

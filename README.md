@@ -109,6 +109,8 @@ Finder appears first by default. Enable **Hide Finder** in each Taskbar plugin's
 
 Enable **Hide apps in Launcher** to omit applications with shortcuts in any enabled Launcher on the panel. Disabled Launchers are ignored. Each Launcher also offers **Show running app indicator**, which draws a small dot below running applications. Both options default to off and are saved independently for each plugin.
 
+With **Show running app indicator** enabled, right-click a Launcher shortcut for app actions alongside **Remove Shortcut**. Running apps offer **Show Windows**, **Hide/Unhide**, **Show in Finder**, and **Quit** (except Finder). Show Windows restores minimized windows with Accessibility access and sends the app a reopen request. Apps that are not running offer **Open** and **Show in Finder**.
+
 ### App Badges
 
 Launcher and Taskbar mirror app badges exposed by the system Dock, including when the Dock is auto-hidden. Badges appear on the icon, including Taskbar's Icons and Titles mode. Counts above 99 display as **99+**; long nonnumeric labels display as a red dot. The full original label remains available to accessibility tools.

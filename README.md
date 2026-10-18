@@ -1,179 +1,163 @@
 # Plank
 
-A macOS desktop panel built with Swift and AppKit, inspired by XFCE Panel and designed as an alternative to the system Dock.
+An XFCE-inspired panel for macOS, with app shortcuts, running apps, an application menu, clocks, and Trash. Use it alongside the system Dock or enable Dock replacement in settings.
 
-## Requirements
+Requires **macOS 14 or later**. Plank sits at the bottom of your primary display and supports multiple desktop Spaces.
 
-- macOS 14 or later
-- Swift 6 or later, using Xcode or Command Line Tools
-- Swift Package Manager; no third-party package dependencies
+## Getting Started
 
-## Development
+1. Copy `Plank.app` to `/Applications` and open it. If you are building from source, follow the [development guide](docs/DEVELOP.md#build-and-run).
+2. Right-click the panel's left-hand three-dot handle and choose **Settings…** to adjust its appearance.
+3. Choose **Plugins…**, or **Manage Plugins…** in settings, to customize the panel.
+4. Enable **Launch at Login** if you want Plank to start when you sign in. If approval is needed, use **Open Login Items Settings…**.
 
-```sh
-swift build
-swift run Plank
-```
+Settings save automatically. To quit, choose **Quit Plank** from the panel menu. Quit normally so Plank can restore the system Dock if it is hidden.
 
-You can also open `Package.swift` in Xcode. Right-click the panel handle and choose **Quit Plank** to exit. When running from a terminal, you can also press Ctrl-C.
+New panels use the following layout:
 
-## Building the App
+**iMenu → Separator → Show Desktop → Separator → Launcher → Separator → Taskbar → expanding Space → Separator → Clock (Binary) → Trash**
 
-```sh
-./scripts/build-app.sh
-open dist/Plank.app
-```
+Existing saved layouts are preserved when you update Plank.
 
-The script builds an ad hoc signed application for local use. Before distributing it, configure your own bundle identifier, Developer ID signing, and notarization.
+## Panel Settings
 
-The original app icon is in `Assets/AppIcon.png`. The build script generates the multi-resolution `Assets/AppIcon.icns` and bundles it with the app. Design notes and the generation prompt are in `Assets/README.md`.
+Open **Settings…** from the panel menu.
 
-## Features
+| Setting          | Options                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| Width            | 10%–100% of the screen; defaults to 100%. Full-width panels have square corners.                         |
+| Height           | Tiny (32 pt), Small (48 pt), Medium (64 pt), Large (80 pt), or Custom (32–128 pt). Defaults to Medium.   |
+| Launch at Login  | Start Plank automatically when you sign in. Install the app in its permanent location first.             |
+| Hide System Dock | Hide the system Dock and keep supported maximized windows clear of Plank. Requires Accessibility access. |
 
-- A translucent floating panel at the bottom of the primary display that does not take keyboard focus during normal use.
-- Running application buttons with active-app highlighting and updates when apps launch or quit.
-- Support for multiple desktop Spaces and horizontal scrolling when content overflows.
-- Adjustable panel width: right-click the panel handle, choose **Settings…**, and set the width to 10%–100% of the screen. The default is 100%. At 100%, the panel spans the screen and has square corners. Changes apply immediately and are saved automatically.
-- Modular plugins, with the default order: **iMenu → Separator → Show Desktop → Separator → Launcher → Separator → Taskbar → expanding Space → Separator → Clock (Binary) → Trash**. Existing custom arrangements are preserved.
+Press Return to apply a custom height. Switching height presets preserves your last custom value. If the panel's contents exceed its width, scroll horizontally to reach them.
 
-By default, Plank uses the screen's usable area and sits above the system Dock. You can enable automatic Dock hiding in System Settings → Desktop & Dock. Plank does not change the Dock unless you enable **Hide System Dock**.
+### Replacing the System Dock
 
-## Limitations and Future Work
+**Hide System Dock** is off by default. Until you enable it, Plank sits above the system Dock's reserved area.
 
-Future work includes more status plugins, panel positioning, and multi-display support. System-wide screen-edge reservation, panel auto-hide, and the full feature set of the macOS Dock are not implemented.
+To use Plank as your Dock replacement:
 
-## Launch at Login
+1. In panel settings, choose **Open Accessibility Settings…** and allow Plank. Permission names can vary by macOS version.
+2. Return to Plank and enable **Hide System Dock**.
 
-Enable **Launch at Login** in panel settings to start Plank automatically when you log in. Turning it off removes the login item. Plank uses `SMAppService.mainApp` and displays the actual system registration status. If approval is required, choose **Open Login Items Settings…** to grant it.
+Plank then sits at the physical bottom edge and adjusts supported maximized or full-height tiled windows to leave room for it. This clearance spans the bottom edge even when the panel is narrower than the screen. Smaller floating windows are left alone. Plank hides while native full-screen apps are active in Dock replacement mode.
 
-Move `Plank.app` to a permanent location, such as `/Applications`, before enabling this option. Launch at login cannot be configured when running the command-line executable directly.
+Turning this option off or quitting normally restores your previous Dock settings. After an unexpected exit, reopen Plank so it can recover the Dock settings.
 
-## Git
+Some apps enforce their own window sizes. Window managers such as Hammerspoon may need their own Plank-aware configuration; see the [window-space notes](docs/DEVELOP.md#dock-replacement-and-window-space).
 
-Source code is managed with Git. Build caches and packaged applications are excluded by `.gitignore`.
+### Locking the Panel
 
-## Replacing the System Dock and Reserving Window Space
+Choose **Lock Panel** in the panel menu to hide handles and prevent dragging plugins or Launcher shortcuts directly on the panel. Right-click an empty panel area to unlock it.
 
-**Hide System Dock** is off by default. Before enabling it, grant Plank Accessibility access in System Settings. Without permission, Plank leaves the Dock unchanged. Use **Open Accessibility Settings…** in panel settings, grant access, and enable the option again.
-
-When enabled, Plank turns on Dock auto-hide, sets its reveal delay to one day to suppress edge activation, and restarts the Dock. Plank moves to the physical bottom edge of the primary display using its configured height. Window clearance applies across the entire bottom edge, even if panel width is less than 100%.
-
-macOS exposes `NSScreen.visibleFrame` as a read-only property. Public APIs do not let third-party applications register a reserved screen area equivalent to the Dock. Plank does not change display resolution or the system-wide usable screen area. Instead, it records the original work area before hiding the Dock and adjusts eligible windows to leave room for the panel.
-
-Windows previously maximized or tiled against the Dock boundary can shrink or expand to match Plank's height, including reclaiming space left by a taller Dock. The original work area is saved with the Dock recovery data and checked against the display identity and screen geometry before reuse.
-
-Plank uses Accessibility notifications and periodic checks to adjust near-maximized or full-height tiled windows on the primary display. It preserves the menu bar area, horizontal position, and width. Small floating windows, dialogs, minimized windows, and windows on other displays or Spaces are left alone. Apps that reject Accessibility resizing or enforce minimum sizes may not fit. Native full-screen windows are not resized; Plank hides while they are active.
-
-Turning the option off or quitting normally restores the original Dock auto-hide and reveal-delay settings, removing preferences that did not originally exist. Plank also attempts to restore windows that still have their adjusted geometry; it does not overwrite subsequent manual moves or resizes.
-
-After an unexpected exit, the Dock may remain hidden temporarily. On the next launch, Plank reads its saved settings and restores the Dock or resumes replacement mode. Recovery data is removed only after restoration succeeds. Rebuilding the ad hoc signed app may require granting Accessibility access again.
-
-The implementation uses Apple's [visibleFrame API](https://developer.apple.com/documentation/appkit/nsscreen/visibleframe) and [Accessibility trust checks](https://developer.apple.com/documentation/applicationservices/1460720-axisprocesstrusted). Preference and geometry checks use a simulated Dock backend and do not change the test machine's Dock.
-
-## Locking the Panel
-
-Toggle **Lock Panel** in the panel context menu to hide the panel and plugin handles and disable plugin dragging, including reordering in the Plugins window. Any active plugin move is canceled. The lock state is saved automatically.
-
-Right-click an empty area of the locked panel and turn off **Lock Panel** to restore the handles. App switching, Launcher, and iMenu remain available while locked. Plugin settings remain accessible through the Plugins window.
-
-## Panel Height
-
-Open **Settings…** from the panel menu and choose a height: **Large (80 pt)**, **Medium (64 pt)**, **Small (48 pt)**, **Tiny (32 pt)**, or **Custom (32–128 pt)**. Medium is the default. Changes apply immediately and are saved automatically. Press Return to apply a custom value; switching presets preserves the last custom height.
-
-Plugin containers and Taskbar and Launcher buttons fill the panel height, with no panel padding or inter-plugin spacing. Icons retain their own visual inset. Trash, iMenu, and handles also scale with panel height; separator lines span the full height. Clock text remains at a readable font size.
+You can still open apps, use their context menus, and **reorder or configure plugins in the Plugins window while locked**.
 
 ## Managing Plugins
 
-Right-click the panel or its left-hand handle—the three vertical dots—and choose **Plugins…**.
+Open **Plugins…** from the panel menu or **Manage Plugins…** from settings.
 
-- Drag rows to reorder plugins, including while the panel is locked. A horizontal insertion line follows the pointer to show the destination. The panel updates immediately and saves the order. Press Esc or release outside the list to cancel.
-- Double-click a row to open settings for that instance. Every plugin supports a custom name. Clock settings include **Use 24-Hour Time** and **Show Seconds**; the clock width follows the displayed text.
-- Clock offers **Digital**, **Analog**, and **Binary** styles. Digital and Binary support 12-hour or 24-hour time. Analog uses a 12-hour dial, with an optional second hand. Binary encodes each decimal digit in a column of dots weighted 8, 4, 2, 1 from top to bottom; groups are hours, minutes, and optional seconds. Hover over any style for the full date and readable time. Existing clocks default to Digital, and each instance saves its own style.
-- Choose **Add…** to add Taskbar, Separator, Clock, Trash, Launcher, iMenu, or Show Desktop. Multiple instances of the same type are supported, each with independent settings.
-- Select a row and choose **Remove** to remove that instance.
-- Hidden instances remain in the list. Right-click a hidden row and choose **Show Plugin** to restore it.
+- **Add…** lists all available plugin types. You can add multiple instances, each with its own settings.
+- Drag a row to reorder it, even while the panel is locked. A horizontal line marks the insertion position. Press Esc or release outside the list to cancel.
+- Double-click a row to open its settings and change its name or options.
+- Select a row and choose **Remove** to remove that plugin.
+- To hide a plugin, use its panel context menu. Hidden plugins remain in the list; right-click a hidden row and choose **Show Plugin** to restore it.
 
-Separator supports **Line** and **Space** styles. Space can have a fixed width of 8–400 pt, or **Expand to fill remaining panel space**. Multiple expanding spaces share the available width equally. When content overflows, spaces retain a minimum width and the panel scrolls horizontally.
+When unlocked, each plugin except Separator has a vertical three-dot handle. Click or right-click the handle for its menu. Right-click Separator directly. Choose **Move** to drag a plugin along the panel; release outside the panel or choose **Cancel Move** to cancel.
 
-## Show Desktop
+### iMenu
 
-Add **Show Desktop** from the Plugins window. Click its monitor icon to move windows aside and reveal the desktop; click again to restore them. The panel stays visible during Show Desktop. The button supports all panel sizes, including Tiny (32 pt), and remains usable while the panel is locked.
+Click the four-square icon to browse applications. Type to search, click a result to launch it, or use arrow keys and Return. Press Esc or click outside to close.
 
-This plugin uses the Dock's internal `CoreDockSendNotification` interface with `com.apple.showdesktop.awake`, following [Hammerspoon's implementation](https://github.com/Hammerspoon/hammerspoon/blob/master/extensions/spaces/spaces.lua). It does not require Hammerspoon, send keyboard shortcuts, or minimize individual windows. The interface is private and may change in future macOS versions; if it cannot be loaded or returns an error, Plank displays an error instead of attempting a different action. It leaves multi-display and Spaces behavior to macOS and does not maintain its own active-state indicator.
+In iMenu settings, choose **List View** or **Icon View**. Icon View displays larger icons and app names in a grid that adapts to the menu width. Drag the menu's edges or corners to resize it; each iMenu remembers its size. The menu aligns with its button and stays next to the panel.
 
-## Context Menus
+The bottom row provides **Lock**, **Sleep**, **Restart…**, and **Shut Down…**. Restart and Shut Down ask for confirmation. These actions may require Automation permission for System Events; Lock also requires Accessibility access.
 
-Panel and plugin context menus open above the panel without being confined to its short window, avoiding clipped menus and scrolling arrows. Use the arrow keys to select an action, Return to run it, and Esc or an outside click to close.
+### Launcher
 
-Right-click the Taskbar handle for plugin actions. Right-click an application button for **Show**, **Hide/Unhide**, **Show in Finder**, and **Quit**. Finder does not offer Quit. Application menus remain available while the panel is locked; right-click an empty area for the panel menu and unlock action.
+Drag apps from Finder, or app buttons from Taskbar, onto Launcher to add shortcuts. Click a shortcut to open its app. The button briefly highlights to confirm the click.
 
-Right-click the Trash icon for **Open Trash** or **Empty Trash…**, including while the panel is locked. Emptying Trash displays a confirmation dialog with **Cancel** as the default. After confirmation, Finder empties the Trash. This requires permission for Plank to control Finder under Privacy & Security → Automation. Emptying Trash permanently deletes its contents.
+- Drag shortcuts within Launcher to reorder them; an insertion marker shows the destination.
+- Drag a shortcut outside the panel, or choose **Remove Shortcut** from its context menu, to remove it. This does not delete or quit the app.
+- Release elsewhere on the panel, outside Launcher, to cancel a reorder.
+- Locking the panel disables shortcut dragging while keeping app launching available.
+- Duplicate shortcuts are ignored within a Launcher. Each Launcher keeps its own list.
+- If you move or delete an app, remove its old shortcut and add it again. Ordinary file drops are not supported.
 
-Trash uses macOS's empty and full Trash icons. It checks Finder's combined Trash (including mounted volumes) at startup and approximately every two seconds, without rebuilding the panel. Reading this status also requires Finder automation permission. If a query fails, the last known icon is retained; before the first successful query, a default empty Trash icon is shown without claiming an empty status. Status queries do not delete or move files.
+Enable **Show running app indicator** to display a dot below running apps. This also adds app actions to the shortcut's context menu: **Show Windows**, **Hide/Unhide**, **Show in Finder**, and **Quit**. Finder does not offer Quit. Apps that are not running offer **Open** instead. Restoring minimized windows through Show Windows requires Accessibility access.
 
-## Taskbar
+### Taskbar
 
-Finder appears first by default. Enable **Hide Finder** in each Taskbar plugin's settings to remove it from that Taskbar. Other applications retain their window opening order.
+Taskbar displays running apps and highlights the active app.
 
-Enable **Hide apps in Launcher** to omit applications with shortcuts in any enabled Launcher on the panel. Disabled Launchers are ignored. Each Launcher also offers **Show running app indicator**, which draws a small dot below running applications. Both options default to off and are saved independently for each plugin.
+- Click an app to bring it forward. If it has no windows, Plank asks it to reopen; the app decides whether to create a window.
+- Click the active app to minimize its focused window. Click again to ask the app to restore a window. Minimizing requires Accessibility access.
+- Right-click an app button for **Show**, **Hide/Unhide**, **Show in Finder**, and **Quit**. Finder does not offer Quit. Right-click the handle for plugin settings.
+- Drag an app button into Launcher to add a shortcut. Dropping it outside the panel has no effect.
 
-With **Show running app indicator** enabled, right-click a Launcher shortcut for app actions alongside **Remove Shortcut**. Running apps offer **Show Windows**, **Hide/Unhide**, **Show in Finder**, and **Quit** (except Finder). Show Windows restores minimized windows with Accessibility access and sends the app a reopen request. Apps that are not running offer **Open** and **Show in Finder**.
+Finder appears first unless **Hide Finder** is enabled. Other apps follow window opening order as observed by Plank. When the order is unknown, such as windows already open when Plank starts, Plank falls back to app-name sorting. Switching apps does not change the order; apps without windows appear after those with windows.
+
+Taskbar settings include:
+
+| Setting               | Effect                                                             |
+| --------------------- | ------------------------------------------------------------------ |
+| Style                 | Icons Only, or Icons and Titles with the app name beside its icon. |
+| Maximum width         | Limit labeled buttons to 80–400 pt; defaults to 180 pt.            |
+| Hide Finder           | Remove Finder from this Taskbar.                                   |
+| Hide apps in Launcher | Hide apps with shortcuts in any enabled Launcher on the panel.     |
 
 ### App Badges
 
-Launcher and Taskbar mirror app badges exposed by the system Dock, including when the Dock is auto-hidden. Badges appear on the icon, including Taskbar's Icons and Titles mode. Counts above 99 display as **99+**; long nonnumeric labels display as a red dot. The full original label remains available to accessibility tools.
+Launcher and Taskbar show available system Dock badges in the icon's upper-left corner. Counts over 99 appear as **99+**; long text labels appear as a red dot.
 
-Reading badges requires Accessibility access for Plank. Grant it in System Settings → Privacy & Security → Accessibility (also accessible from panel settings). Badges update approximately once per second without rebuilding the panel. An app must have a Dock item that exposes an `AXStatusLabel`; apps that paint custom icons without exposing a label, or have no accessible Dock item, cannot be mirrored. Plank does not read notification databases or infer unread counts. If access is unavailable, buttons work normally without badges.
+Badges require Accessibility access. Only badges supplied by the system Dock can be shown; some apps provide no readable badge, and an existing badge may not be available immediately after startup or a Dock restart. Plank cannot independently calculate Mail or WeChat unread counts.
 
-### Ordering and Appearance
+### Separator
 
-Taskbar groups buttons by application and orders them by when Plank first observes each application's earliest remaining window. Switching the foreground app does not reorder buttons. Windows already present when Plank starts, or first detected in the same polling cycle, have no known historical order and fall back to application-name sorting. Apps without windows follow apps with windows. Detection runs every 0.5 seconds and includes minimized windows and windows in other Spaces.
+Choose **Line** for a thin vertical divider spanning the panel height, or **Space** for a blank area of 8–400 pt. Enable **Expand to fill remaining panel space** to use the available space. Multiple expanding separators share that space equally.
 
-Double-click Taskbar in the Plugins list, or right-click its handle and choose **Plugin Settings…**, to select **Icons Only** or **Icons and Titles**. Titles use the application name, with the icon on the left. Labeled buttons size to their content up to a configurable maximum of 80–400 pt, defaulting to 180 pt. Long titles are truncated; hover to see the full name. Icon-only buttons use the panel height as their width.
+### Clock
 
-Each Taskbar instance saves its own style and width. Older configurations default to icons only. Clicking an inactive app uses Launch Services to reopen it: apps with windows are brought forward, while apps without windows receive the standard reopen request and decide whether to create or restore a window. This activation path does not require Accessibility or Automation access.
+Choose **Digital**, **Analog**, or **Binary** in Clock settings. Digital and Binary support **Use 24-Hour Time**; all styles support **Show Seconds**. Hover over the clock for the date and readable time.
 
-Clicking the current foreground application's button minimizes its focused standard window. A subsequent click uses the standard reopen request to restore a window. Minimizing requires Accessibility access, and macOS prompts on first use. Without permission, or if the window cannot be minimized, Plank retains its normal activation behavior. **Show** in the context menu always displays the app; dragging an app to Launcher does not minimize it.
+Binary clock columns represent decimal digits. Read the lit dots from top to bottom as **8, 4, 2, 1**, and add them to obtain each digit. The groups are hours, minutes, and optional seconds. New panels use Binary; existing clocks keep their saved style.
 
-## iMenu
+### Show Desktop
 
-Add **iMenu** in the Plugins window, then click its four-square icon to open a compact menu of approximately 400 × 480 pt. Search by application display name or filename. Click a result or press Return to launch it, use the arrow keys to navigate, and press Esc or click outside to close. An empty result list shows a message.
+Click the monitor icon to move windows aside and reveal the desktop. Click again to restore them. The panel stays visible, including when locked. No Hammerspoon setup is needed.
 
-In iMenu settings, choose **Display as → List View** (default) or **Icon View**. Icon View arranges larger app icons with names in a grid that adapts to the menu width. Search, arrow-key navigation, and launching work in both modes. Each iMenu saves its display mode independently.
+This feature depends on an internal macOS capability and may need an update after a macOS upgrade.
 
-iMenu uses an arrowless rounded floating window that sits flush against the panel and aligns with its button. It shifts only as needed to stay within the usable screen bounds, with no additional screen-edge margin.
+### Trash
 
-Drag the menu's edges or corners to resize it. Each iMenu remembers its size across launches, with screen bounds limiting its maximum size. The menu stays attached to the panel while resizing.
+Click Trash to open it in Finder. Its icon changes between empty and full, with status checks approximately every two seconds. Reading the status requires Automation permission for Finder. If status is unavailable, Plank keeps the last known icon; before the first successful check, it shows the default empty icon.
 
-The application count and usage hints appear beside the **Applications** heading. The bottom row provides **Lock**, **Sleep**, **Restart…**, and **Shut Down…**, using Google Material Design icons. Restart and Shut Down display a confirmation dialog with Cancel as the default. These actions use AppleScript to control System Events and require permission under System Settings → Privacy & Security → Automation. Lock also requires Accessibility access. Icons and their Apache 2.0 license are bundled with the app; see `Sources/Plank/Resources/MaterialIcons/NOTICE.txt` for attribution.
+Right-click for **Open Trash** or **Empty Trash…**, including while the panel is locked. Empty Trash asks for confirmation and requires Finder automation permission. **Emptying Trash permanently deletes its contents.**
 
-The application catalog refreshes in the background whenever the menu opens. It scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. Scanning skips helpers inside app bundles, hidden files, and background apps, and deduplicates paths. The menu adapts to available screen space without entering full screen.
+## Permissions
 
-## Launcher
+Grant permissions in **System Settings → Privacy & Security** when you use the corresponding features.
 
-Choose **Add… → Launcher** in the Plugins window. Drag one or more `.app` bundles from Finder, or an application button from Taskbar, onto **＋ Drop Apps Here** or an existing Launcher icon to add shortcuts. The drop area highlights when it accepts the drag. Both icon-only and labeled Taskbar buttons can be dragged. Dropping only adds a shortcut; it does not launch or quit the app. Canceling a drag adds nothing.
+| Permission                 | Used for                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accessibility              | Keeping supported windows clear of Plank, minimizing Taskbar windows, restoring minimized windows from Launcher, reading Dock badges, and locking the screen. |
+| Automation → Finder        | Reading Trash status and emptying Trash after confirmation.                                                                                                   |
+| Automation → System Events | iMenu's Lock, Sleep, Restart, and Shut Down actions.                                                                                                          |
 
-- Click a shortcut to open or activate its app. Buttons highlight when pressed and briefly after release.
-- Right-click an icon and choose **Remove Shortcut** to remove only the shortcut.
-- Adding the same app to a Launcher again does not create duplicates. Multiple Launchers keep independent shortcut lists.
-- Drag icons horizontally to reorder them. An insertion marker shows the destination. Release outside the panel to remove the Launcher shortcut; the application itself is not deleted or quit. Releasing elsewhere inside the panel, outside Launcher, cancels the reorder. Locking the panel disables dragging but still allows launching apps.
-- Shortcuts persist across restarts. If an app is moved or deleted, remove its old shortcut and add it again.
-- Only local application bundles are accepted. A drop containing ordinary files is rejected as a whole.
+Opening apps and managing shortcuts do not need these permissions. If macOS stops recognizing permissions after an app update, review Plank's entry in System Settings.
 
-Dragging a Taskbar button outside the panel has no effect. Taskbar supports drops into Launcher within Plank; it does not offer file drops to other applications.
+## Troubleshooting
 
-## Handles and Moving Plugins
+**The system Dock stayed hidden after a crash:** Reopen Plank, then turn off Hide System Dock or quit using **Quit Plank**.
 
-Every plugin except Separator has a three-dot vertical handle on its left. Click or right-click it to open the plugin menu. Right-click a separator directly; its narrow hit area also works in Space mode.
+**An app overlaps the panel:** Check Accessibility permission and Hide System Dock. Apps with custom sizing rules or external window managers may need separate configuration. Plank does not create a system-wide reserved area that every app can detect.
 
-Choose **Move** in a plugin menu to highlight the plugin, then drag horizontally and release to reorder it. Release outside the panel or choose **Cancel Move** to cancel. Plugin menus also offer hiding and settings; Trash additionally offers Open Trash and Empty Trash.
+**An app badge is missing:** Check Accessibility permission. The system Dock must expose the badge; refreshing an app's icon cache does not restore unread counts.
 
-## Project Structure and Checks
+**Trash does not change icons:** Allow Plank to control Finder in Automation settings. A failed status check keeps the previous icon.
 
-`Sources/Plank/PanelPlugin.swift` defines the plugin protocol. Each built-in plugin lives in its own file and supplies its settings controls, validation, and save logic through `PluginSettingsContent`. `PluginSettingsWindowController` provides the shared window, name field, and layout. `PluginPreferences.swift` stores instances, ordering, and per-instance settings. To add a plugin, implement the protocol (including `makeSettings`) and register it in the available-types list and `PluginFactory.swift`. Plugins are compiled into the app; external dynamic plugins and dropping files onto Trash are not supported.
+## Current Limits
 
-Older plugin ordering and visibility settings migrate automatically. Checks cover Launcher validation, deduplication, sorting, instance isolation, removal cleanup, Taskbar ordering, panel dimensions, application discovery, Dock recovery, and reserved-window geometry. They use an isolated preferences domain and do not modify your panel configuration:
+Plank currently uses the primary display's bottom edge. Panel auto-hide, configurable screen-edge positioning, and separate panels on multiple displays are not available. External plugins and dropping files onto Trash are not supported.
 
-```sh
-./scripts/check-preferences.sh
-```
+For building, architecture, configuration storage, and checks, see [Developing Plank](docs/DEVELOP.md).

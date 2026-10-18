@@ -180,21 +180,33 @@ final class PanelBackgroundView: NSVisualEffectView {
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }
-
-    // The panel is a fixed surface. Do not let a mouse wheel move its content
-    // horizontally or vertically when plugin content exceeds the panel width.
-    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor
 final class PanelContentView: NSView {
+    let stack = PanelStackView()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 0
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.heightAnchor.constraint(equalTo: heightAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { nil }
+
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }
-
-    // Keep the panel content fixed even when the event originates in a plugin
-    // view and bubbles up through the content hierarchy.
-    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor

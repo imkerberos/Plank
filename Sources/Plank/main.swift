@@ -4,18 +4,14 @@ import AppKit
 final class Panel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
-
-    // The panel is a fixed surface. Consume wheel events at the window level
-    // so they cannot reach a scrollable responder or move the panel content.
-    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: Panel!
     private let systemDock = SystemDockController()
-    private let stack = PanelStackView()
     private let content = PanelContentView()
+    private var stack: PanelStackView { content.stack }
     private var contentLeading: NSLayoutConstraint!
     private var plugins: [any PanelPlugin] = []
     private var pluginsController: PluginsWindowController?
@@ -199,15 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         background.addSubview(handle)
 
         content.translatesAutoresizingMaskIntoConstraints = false
-        content.wantsLayer = true
-        content.layer?.masksToBounds = true
         background.addSubview(content)
-        content.addSubview(stack)
-
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 0
-        stack.translatesAutoresizingMaskIntoConstraints = false
         stackWidth = stack.widthAnchor.constraint(equalToConstant: 100)
         stackWidth.isActive = true
         contentLeading = content.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 24)
@@ -217,10 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             contentLeading,
             content.trailingAnchor.constraint(equalTo: background.trailingAnchor),
             content.topAnchor.constraint(equalTo: background.topAnchor),
-            content.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.heightAnchor.constraint(equalTo: content.heightAnchor)
+            content.bottomAnchor.constraint(equalTo: background.bottomAnchor)
         ])
 
         let workspaceCenter = NSWorkspace.shared.notificationCenter

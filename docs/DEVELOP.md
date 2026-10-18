@@ -72,6 +72,8 @@ The panel is a borderless, nonactivating `NSPanel` that cannot become key or mai
 
 Width defaults to 100%, with square corners at that width and rounded corners below it. Heights are Tiny 32, Small 48, Medium 64 (default), Large 80, or custom 32–128 pt. Plugin containers and buttons fill the panel height, with no panel padding or inter-plugin spacing. Expanding separators share remaining width; overflow is clipped to the fixed panel bounds.
 
+`PanelContentView` owns the plugin stack and clips overflow without a scroll or clip view. Keep scrolling containers confined to iMenu and settings windows: hiding an `NSScrollView`'s scrollbars does not disable elastic scrolling. When checking a local build, verify the executable path; `swift run Plank` and `/Applications/Plank.app` can contain different versions.
+
 `PanelMenu` presents compact context menus in a popover rather than constraining native menus to the panel's short frame. It supports keyboard selection, Return, Esc, and outside-click dismissal.
 
 `PanelBackgroundView` uses `.activeAlways` tracking areas with mouse-entered and mouse-moved events to replace cursor state inherited from other applications. Apple's tracking rules do not deliver `cursorUpdate` with `.activeAlways`. Normal panel regions set an arrow; a moving plugin uses an open-hand cursor. Tracking does not require making the panel key or installing a global mouse monitor.

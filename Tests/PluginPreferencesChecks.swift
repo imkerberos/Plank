@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import CoreGraphics
 
 @main
@@ -22,9 +23,50 @@ struct PluginPreferencesChecks {
         testReservedWorkspace()
         testPanelHeightSettings()
         testPanelThemeSettings()
+        testPanelFixedGeometry()
         testTaskbarSettingsCompatibility()
-        print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry")
+        print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry, fixed panel geometry")
     }
+    @MainActor
+    static func testPanelFixedGeometry() {
+        _ = NSApplication.shared
+        let window = NSPanel(contentRect: NSRect(x: 100, y: 100, width: 200, height: 48),
+                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let content = PanelContentView(frame: NSRect(x: 0, y: 0, width: 200, height: 48))
+        let probe = WheelProbe()
+        probe.translatesAutoresizingMaskIntoConstraints = false
+        let container = PluginContainer(id: "test", views: [probe])
+        content.stack.addArrangedSubview(container)
+        NSLayoutConstraint.activate([
+            content.stack.widthAnchor.constraint(equalToConstant: 400),
+            container.heightAnchor.constraint(equalTo: content.stack.heightAnchor),
+            probe.widthAnchor.constraint(equalToConstant: 400),
+            probe.heightAnchor.constraint(equalToConstant: 48)
+        ])
+        window.contentView = content
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        window.layoutIfNeeded()
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap { descendants($0) }
+        }
+        let views = descendants(content)
+        precondition(content.stack.superview === content)
+        precondition(content.stack.frame.height == 48 && content.stack.frame.width == 400)
+        precondition(views.allSatisfy { !($0 is NSScrollView) && !($0 is NSClipView) },
+                     "The panel must not have a scrollable viewport")
+        let geometry = views.map { ($0.frame, $0.bounds) }
+        for (y, x) in [(20, 0), (-20, 0), (0, 20), (0, -20)] {
+            window.sendEvent(WheelEvent(target: window, x: x, y: y))
+            window.layoutIfNeeded()
+        }
+        precondition(probe.events == 4, "Wheel events must reach the child without being filtered")
+        for (view, (frame, bounds)) in zip(views, geometry) {
+            precondition(view.frame == frame && view.bounds == bounds,
+                         "Overflowing panel content must stay fixed when wheel events are delivered")
+        }
+    }
+
     @MainActor
     private static func withIsolatedPreferences(_ body: () -> Void) {
         let suite = "dev.plank.tests.\(UUID().uuidString)"
@@ -488,4 +530,36 @@ private final class TestDockBackend: DockSettingsBackend {
     func reload() throws {
         if failNextReload { failNextReload = false; throw CocoaError(.fileWriteUnknown) }
     }
+}
+
+@MainActor
+private final class WheelProbe: NSView {
+    var events = 0
+    override func scrollWheel(with event: NSEvent) {
+        events += 1
+        super.scrollWheel(with: event)
+    }
+}
+
+private final class WheelEvent: NSEvent, @unchecked Sendable {
+    let target: NSWindow
+    let targetNumber: Int
+    let x: Int
+    let y: Int
+    @MainActor init(target: NSWindow, x: Int, y: Int) {
+        self.target = target
+        self.targetNumber = target.windowNumber
+        self.x = x
+        self.y = y
+        super.init()
+    }
+    required init?(coder: NSCoder) { nil }
+    override var momentumPhase: NSEvent.Phase { [] }
+    override var phase: NSEvent.Phase { [] }
+    override var type: NSEvent.EventType { .scrollWheel }
+    override var window: NSWindow? { target }
+    override var windowNumber: Int { targetNumber }
+    override var locationInWindow: NSPoint { NSPoint(x: 50, y: 24) }
+    override var deltaX: CGFloat { CGFloat(x) }
+    override var deltaY: CGFloat { CGFloat(y) }
 }

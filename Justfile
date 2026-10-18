@@ -115,6 +115,97 @@ verify-app:
     test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/Plank.app/Contents/Info.plist)" = "$(just --quiet version)"
     test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' dist/Plank.app/Contents/Info.plist)" = "$(just --quiet version)"
 
+# Create and push the VERSION tag, then start the GitHub Draft Release workflow.
+[positional-arguments]
+release-draft tag="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    requested="{{ tag }}"
+    version=$(just --quiet version)
+    if [[ -z "$requested" ]]; then
+        release_tag="v$version"
+    elif [[ "$requested" == v* ]]; then
+        release_tag="$requested"
+    else
+        release_tag="v$requested"
+    fi
+    [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+        echo "Release tag must be vX.Y.Z" >&2
+        exit 2
+    }
+    [[ "$release_tag" == "v$version" ]] || {
+        echo "Release tag must match VERSION (v$version)" >&2
+        exit 2
+    }
+    command -v gh >/dev/null 2>&1 || {
+        echo "GitHub CLI (gh) is required; install it and run gh auth login first" >&2
+        exit 1
+    }
+    branch=$(git branch --show-current)
+    [[ -n "$branch" ]] || {
+        echo "release-draft must run from a named branch" >&2
+        exit 1
+    }
+    [[ -z "$(git status --porcelain)" ]] || {
+        echo "working tree has uncommitted changes; commit them before release-draft" >&2
+        exit 1
+    }
+    head=$(git rev-parse HEAD)
+    remote_head=$(git rev-parse "origin/$branch" 2>/dev/null || true)
+    [[ "$head" == "$remote_head" ]] || {
+        echo "HEAD is not pushed to origin/$branch; push the current commit first" >&2
+        exit 1
+    }
+    just ci
+    if git show-ref --verify --quiet "refs/tags/$release_tag"; then
+        tag_head=$(git rev-list -n 1 "$release_tag")
+        [[ "$tag_head" == "$head" ]] || {
+            echo "$release_tag already exists and does not point to HEAD" >&2
+            exit 1
+        }
+    elif git ls-remote --exit-code --tags origin "refs/tags/$release_tag" >/dev/null 2>&1; then
+        git fetch origin "refs/tags/$release_tag:refs/tags/$release_tag"
+        tag_head=$(git rev-list -n 1 "$release_tag")
+        [[ "$tag_head" == "$head" ]] || {
+            echo "$release_tag already exists on origin and does not point to HEAD" >&2
+            exit 1
+        }
+    else
+        git tag -a "$release_tag" -m "Release $release_tag" "$head"
+    fi
+    git push origin "refs/tags/$release_tag"
+    repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+    gh workflow run release.yml --repo "$repo" --ref "$branch" --raw-field "tag=$release_tag"
+    echo "Started Draft Release workflow for $release_tag"
+
+# Publish an existing GitHub Draft Release after its artifacts are verified.
+[positional-arguments]
+release-publish tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    requested="{{ tag }}"
+    if [[ "$requested" == v* ]]; then
+        release_tag="$requested"
+    else
+        release_tag="v$requested"
+    fi
+    [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+        echo "Release tag must be vX.Y.Z" >&2
+        exit 2
+    }
+    command -v gh >/dev/null 2>&1 || {
+        echo "GitHub CLI (gh) is required; install it and run gh auth login first" >&2
+        exit 1
+    }
+    repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+    draft=$(gh release view "$release_tag" --repo "$repo" --json isDraft --jq '.isDraft')
+    [[ "$draft" == true ]] || {
+        echo "Refusing to publish $release_tag: the release does not exist as a draft" >&2
+        exit 1
+    }
+    gh release edit "$release_tag" --repo "$repo" --draft=false
+    echo "Published $repo/releases/tag/$release_tag"
+
 # Create a DMG, zipped app, and SHA-256 checksums for download.
 [positional-arguments]
 package arch="native":

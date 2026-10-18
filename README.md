@@ -113,6 +113,10 @@ Launcher and Taskbar show available system Dock badges in the icon's upper-left 
 
 Badges require Accessibility access. Only badges supplied by the system Dock can be shown; some apps provide no readable badge, and an existing badge may not be available immediately after startup or a Dock restart. Plank cannot independently calculate Mail or WeChat unread counts.
 
+### Folder
+
+Add **Folder** from the Plugins window. Double-click its row, choose **Choose Folder…**, and select a directory. Click the panel icon to open that directory in Finder. Each instance has its own location and defaults to your home folder. If a folder is moved, deleted, or on a disconnected drive, choose its new location in the plugin settings.
+
 ### Separator
 
 Choose **Line** for a thin vertical divider spanning the panel height, or **Space** for a blank area of 8–400 pt. Enable **Expand to fill remaining panel space** to use the available space. Multiple expanding separators share that space equally.

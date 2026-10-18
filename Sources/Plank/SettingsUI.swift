@@ -11,6 +11,7 @@ enum SettingsUI {
         case "launcher": "square.grid.3x1.folder.badge.plus"
         case "imenu": "square.grid.2x2"
         case "showdesktop": "desktopcomputer"
+        case "folder": "folder"
         default: "slider.horizontal.3"
         }
     }

@@ -8,6 +8,7 @@ struct PluginPreferencesChecks {
         testMigratesExistingOrderAndHiddenState()
         testDefaultPluginOrder()
         testShowDesktopPluginLifecycle()
+        testFolderSettings()
         testTaskbarWindowOrder()
         testClockStyles()
         testAppBadgeContent()
@@ -85,6 +86,21 @@ struct PluginPreferencesChecks {
             PluginPreferences.remove(first)
             PluginPreferences.remove(second)
             precondition(PluginPreferences.order == original)
+        }
+    }
+
+    @MainActor
+    static func testFolderSettings() {
+        withIsolatedPreferences {
+            let first = PluginPreferences.add(kind: "folder")
+            let second = PluginPreferences.add(kind: "folder")
+            precondition(PluginPreferences.configuration(first)?.folderPath == nil)
+            PluginPreferences.update(first) { $0.folderPath = "/Users/example/Documents" }
+            PluginPreferences.update(second) { $0.folderPath = "/Users/example/Downloads" }
+            precondition(PluginPreferences.configuration(first)?.folderPath == "/Users/example/Documents")
+            precondition(PluginPreferences.configuration(second)?.folderPath == "/Users/example/Downloads")
+            PluginPreferences.remove(first)
+            precondition(PluginPreferences.configuration(second)?.folderPath == "/Users/example/Downloads")
         }
     }
 

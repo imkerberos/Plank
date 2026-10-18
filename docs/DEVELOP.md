@@ -117,6 +117,10 @@ The menu provides list and icon-grid modes, filtering, keyboard navigation, and 
 
 `SeparatorPlugin.swift` supplies settings for Line or Space. `SeparatorView` draws a one-point line explicitly across the full panel height, avoiding disappearing `NSBox.separator` rendering at narrow widths. Space accepts fixed widths of 8–400 pt or expansion to fill remaining panel width.
 
+### Folder
+
+`FolderPlugin.swift` contains the folder button and its settings. The optional `folderPath` field is saved per instance; an unset path defaults to the user’s home directory. Settings use a directory-only `NSOpenPanel`, and cancellation leaves the previous selection intact. The plugin shows the directory’s system icon and opens its contents explicitly through Finder, validating that the directory still exists before opening. It does not require Finder Automation permission for this Launch Services operation.
+
 ### Trash
 
 `TrashPlugin.swift` opens Trash explicitly in Finder and provides Open Trash / Empty Trash context actions. Emptying uses Finder AppleScript only after confirmation; cancellation is ignored and Automation denial produces a helpful error.

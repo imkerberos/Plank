@@ -97,7 +97,7 @@ Views use semantic AppKit colors and adaptive visual-effect materials. Custom Co
 
 `LauncherStore.swift` validates local application bundles, executable presence, canonical paths, duplicates, and per-instance shortcut ordering. Mixed drops containing unsupported files are rejected. Reordering uses insertion gaps in the original array. Removing a shortcut only changes preferences, never the app on disk.
 
-Launcher buttons provide immediate pressed feedback and a short highlight after release. Optional running indicators match canonical paths against running applications. Enabling the indicator also enables application context-menu actions.
+Launcher buttons provide immediate pressed feedback and a short highlight after release. Clicking a shortcut reuses `TaskbarWindowController.minimizeFocusedWindow` for the active app, falling back to normal activation when minimization is unavailable. The context-menu Show Windows action keeps its reopen path and never toggles minimization. Optional running indicators match canonical paths against running applications. Enabling the indicator also enables application context-menu actions.
 
 `DockBadgeCenter.swift` reads `AXStatusLabel` from system Dock application items off the main thread, approximately once per second. `AppBadgeView.swift` updates overlays without rebuilding the panel. `AppBadgeContent.swift` normalizes numeric labels, caps display at 99+, and uses dots for long nonnumeric labels. Full labels remain available to accessibility tools.
 

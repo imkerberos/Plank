@@ -76,7 +76,7 @@ The bottom row provides **Lock**, **Sleep**, **Restart…**, and **Shut Down…*
 
 ### Launcher
 
-Drag apps from Finder, or app buttons from Taskbar, onto Launcher to add shortcuts. Click a shortcut to open its app. The button briefly highlights to confirm the click.
+Drag apps from Finder, or app buttons from Taskbar, onto Launcher to add shortcuts. Click a shortcut to open or activate its app. Clicking the current app minimizes its focused window when possible; click again to ask the app to restore a window. Minimizing requires Accessibility access and works with or without the running indicator. The button briefly highlights to confirm the click.
 
 - Drag shortcuts within Launcher to reorder them; an insertion marker shows the destination.
 - Drag a shortcut outside the panel, or choose **Remove Shortcut** from its context menu, to remove it. This does not delete or quit the app.

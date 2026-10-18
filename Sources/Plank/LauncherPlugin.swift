@@ -260,6 +260,8 @@ private final class LauncherButton: NSButton {
             guard !Task.isCancelled else { return }
             self?.setPressedFeedback(false)
         }
+        if let application = runningApplication,
+           TaskbarWindowController.minimizeFocusedWindow(of: application) { return }
         onOpen?()
     }
 }

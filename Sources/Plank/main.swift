@@ -21,8 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var movingPluginID: String?
     private var settingsController: SettingsWindowController?
     private var widthPercentage: Double {
-        let stored = UserDefaults.standard.object(forKey: "panelWidthPercentage") as? Double ?? 80
-        return stored.isFinite ? min(100, max(10, stored)) : 80
+        let stored = UserDefaults.standard.object(forKey: "panelWidthPercentage") as? Double ?? 100
+        return stored.isFinite ? min(100, max(10, stored)) : 100
     }
 
     private func makePanelMenu() -> NSMenu {

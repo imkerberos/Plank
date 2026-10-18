@@ -60,8 +60,16 @@ enum PluginPreferences {
             let hasLegacyPreferences = defaults.object(forKey: "pluginOrder") != nil
                 || known.contains { defaults.object(forKey: "plugin.\($0).enabled") != nil }
             if !hasLegacyPreferences {
-                return ["imenu", "launcher", "taskbar", "clock", "trash"].map { kind in
-                    PluginConfiguration(id: kind, kind: kind, name: available.first { $0.0 == kind }!.1)
+                return ["imenu", "separator", "showdesktop", "separator", "launcher", "separator",
+                        "taskbar", "separator", "separator", "clock", "trash"].enumerated().map { index, kind in
+                    let id = kind == "separator" ? "separator-\(index)" : kind
+                    var configuration = PluginConfiguration(id: id, kind: kind, name: available.first { $0.0 == kind }!.1)
+                    if kind == "separator", index == 7 {
+                        configuration.separatorStyle = "space"
+                        configuration.expand = true
+                    }
+                    if kind == "clock" { configuration.clockStyle = "binary" }
+                    return configuration
                 }
             }
             let saved = defaults.stringArray(forKey: "pluginOrder") ?? []

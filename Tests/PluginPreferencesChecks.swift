@@ -49,10 +49,22 @@ struct PluginPreferencesChecks {
     @MainActor
     static func testDefaultPluginOrder() {
         withIsolatedPreferences {
-            precondition(PluginPreferences.order == ["imenu", "launcher", "taskbar", "clock", "trash"])
-            precondition(PluginPreferences.configurations.allSatisfy(\.enabled))
-            PluginPreferences.setOrder(["trash", "clock", "taskbar", "launcher", "imenu"])
-            precondition(PluginPreferences.order == ["trash", "clock", "taskbar", "launcher", "imenu"])
+            let defaults = PluginPreferences.configurations
+            precondition(defaults.map(\.kind) == ["imenu", "separator", "showdesktop", "separator", "launcher", "separator",
+                                                  "taskbar", "separator", "separator", "clock", "trash"])
+            precondition(Set(defaults.map(\.id)).count == defaults.count)
+            precondition(defaults.allSatisfy(\.enabled))
+            precondition(defaults[7].separatorStyle == "space" && defaults[7].expand)
+            precondition(defaults.enumerated().filter { $0.element.kind == "separator" && $0.offset != 7 }
+                .allSatisfy { $0.element.separatorStyle == "line" && !$0.element.expand })
+            precondition(defaults[9].clockDisplayStyle == .binary)
+            let reversed = defaults.reversed().map(\.id)
+            PluginPreferences.setOrder(reversed)
+            precondition(PluginPreferences.order == reversed)
+            // Saving a custom arrangement must not reapply the defaults.
+            PluginPreferences.configurations = [PluginConfiguration(id: "custom", kind: "clock", name: "My Clock")]
+            precondition(PluginPreferences.order == ["custom"])
+            precondition(PluginPreferences.configuration("custom")?.clockDisplayStyle == .digital)
         }
     }
 

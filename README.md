@@ -33,8 +33,8 @@ The original app icon is in `Assets/AppIcon.png`. The build script generates the
 - A translucent floating panel at the bottom of the primary display that does not take keyboard focus during normal use.
 - Running application buttons with active-app highlighting and updates when apps launch or quit.
 - Support for multiple desktop Spaces and horizontal scrolling when content overflows.
-- Adjustable panel width: right-click the panel handle, choose **Settings…**, and set the width to 10%–100% of the screen. The default is 80%. At 100%, the panel spans the screen and has square corners. Changes apply immediately and are saved automatically.
-- Modular plugins, with the default order: **iMenu → Launcher → Taskbar → Clock → Trash**. Existing custom arrangements are preserved.
+- Adjustable panel width: right-click the panel handle, choose **Settings…**, and set the width to 10%–100% of the screen. The default is 100%. At 100%, the panel spans the screen and has square corners. Changes apply immediately and are saved automatically.
+- Modular plugins, with the default order: **iMenu → Separator → Show Desktop → Separator → Launcher → Separator → Taskbar → expanding Space → Separator → Clock (Binary) → Trash**. Existing custom arrangements are preserved.
 
 By default, Plank uses the screen's usable area and sits above the system Dock. You can enable automatic Dock hiding in System Settings → Desktop & Dock. Plank does not change the Dock unless you enable **Hide System Dock**.
 

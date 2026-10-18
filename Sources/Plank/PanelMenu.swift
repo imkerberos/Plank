@@ -187,13 +187,13 @@ final class PanelBackgroundView: NSVisualEffectView {
 }
 
 @MainActor
-final class PanelScrollView: NSScrollView {
+final class PanelContentView: NSView {
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }
 
-    // Keep scroll views available for layout overflow, but never scroll the
-    // panel in response to mouse-wheel or trackpad scrolling.
+    // Keep the panel content fixed even when the event originates in a plugin
+    // view and bubbles up through the content hierarchy.
     override func scrollWheel(with event: NSEvent) {}
 }
 

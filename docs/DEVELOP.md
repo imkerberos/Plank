@@ -70,7 +70,7 @@ Plugins are compiled into the executable; there is no external dynamic-plugin lo
 
 The panel is a borderless, nonactivating `NSPanel` that cannot become key or main during normal use. It floats at the bottom of the primary display, joins desktop Spaces, and uses `.stationary` so Show Desktop leaves it visible. Dock replacement manages native full-screen visibility separately.
 
-Width defaults to 100%, with square corners at that width and rounded corners below it. Heights are Tiny 32, Small 48, Medium 64 (default), Large 80, or custom 32–128 pt. Plugin containers and buttons fill the panel height, with no panel padding or inter-plugin spacing. Expanding separators share remaining width; overflow scrolls horizontally.
+Width defaults to 100%, with square corners at that width and rounded corners below it. Heights are Tiny 32, Small 48, Medium 64 (default), Large 80, or custom 32–128 pt. Plugin containers and buttons fill the panel height, with no panel padding or inter-plugin spacing. Expanding separators share remaining width; overflow is clipped to the fixed panel bounds.
 
 `PanelMenu` presents compact context menus in a popover rather than constraining native menus to the panel's short frame. It supports keyboard selection, Return, Esc, and outside-click dismissal.
 

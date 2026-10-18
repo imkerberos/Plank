@@ -167,6 +167,7 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
     private let search = NSSearchField()
     private let table = ApplicationsTableView()
     private let grid = ApplicationsIconGrid()
+    // The application catalog is a separate popup and intentionally scrollable.
     private let scroll = NSScrollView()
     private var showsIcons = false
     private let status = NSTextField(labelWithString: "Loading applications…")

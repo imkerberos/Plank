@@ -4,6 +4,10 @@ import AppKit
 final class Panel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    // The panel is a fixed surface. Consume wheel events at the window level
+    // so they cannot reach a scrollable responder or move the panel content.
+    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor
@@ -11,8 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: Panel!
     private let systemDock = SystemDockController()
     private let stack = PanelStackView()
-    private let scroll = PanelScrollView()
-    private var scrollLeading: NSLayoutConstraint!
+    private let content = PanelContentView()
+    private var contentLeading: NSLayoutConstraint!
     private var plugins: [any PanelPlugin] = []
     private var pluginsController: PluginsWindowController?
     private var pluginSettings: [String: PluginSettingsWindowController] = [:]
@@ -194,12 +198,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let handle = PanelHandle(title: "Panel", menu: makePanelMenu(), isPanel: true)
         background.addSubview(handle)
 
-        scroll.drawsBackground = false
-        scroll.hasHorizontalScroller = false
-        scroll.hasVerticalScroller = false
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        background.addSubview(scroll)
-        scroll.documentView = stack
+        content.translatesAutoresizingMaskIntoConstraints = false
+        content.wantsLayer = true
+        content.layer?.masksToBounds = true
+        background.addSubview(content)
+        content.addSubview(stack)
 
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -207,17 +210,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stack.translatesAutoresizingMaskIntoConstraints = false
         stackWidth = stack.widthAnchor.constraint(equalToConstant: 100)
         stackWidth.isActive = true
-        scrollLeading = scroll.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 24)
+        contentLeading = content.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 24)
         NSLayoutConstraint.activate([
             handle.leadingAnchor.constraint(equalTo: background.leadingAnchor),
             handle.centerYAnchor.constraint(equalTo: background.centerYAnchor),
-            scrollLeading,
-            scroll.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: background.topAnchor),
-            scroll.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
-            stack.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
-            stack.heightAnchor.constraint(equalTo: scroll.heightAnchor)
+            contentLeading,
+            content.trailingAnchor.constraint(equalTo: background.trailingAnchor),
+            content.topAnchor.constraint(equalTo: background.topAnchor),
+            content.bottomAnchor.constraint(equalTo: background.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            stack.topAnchor.constraint(equalTo: content.topAnchor),
+            stack.heightAnchor.constraint(equalTo: content.heightAnchor)
         ])
 
         let workspaceCenter = NSWorkspace.shared.notificationCenter
@@ -291,8 +294,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = systemDock.isActive ? [.canJoinAllSpaces, .stationary] : [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isMovable = false
         panel.isMovableByWindowBackground = false
-        scrollLeading.constant = locked ? 0 : 24
-        scroll.menu = makePanelMenu()
+        contentLeading.constant = locked ? 0 : 24
+        content.menu = makePanelMenu()
         stack.menu = makePanelMenu()
         panel.contentView?.layer?.cornerRadius = widthPercentage == 100 ? 0 : 12
         // Rebuild menus so checkmarks reflect changes made from either entry point.
@@ -335,8 +338,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stack.addArrangedSubview(container)
             container.heightAnchor.constraint(equalTo: stack.heightAnchor).isActive = true
         }
-        // Allocate spare width equally to expanding spaces. Keep natural widths
-        // when content overflows; the enclosing scroll view remains usable.
+        // Allocate spare width equally to expanding spaces. Content that does
+        // not fit is clipped by the fixed panel instead of being scrollable.
         let containers = stack.arrangedSubviews.compactMap { $0 as? PluginContainer }
         let expanding = containers.filter {
             guard let config = PluginPreferences.configuration($0.pluginID) else { return false }
@@ -346,7 +349,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let spacing = CGFloat(max(0, containers.count - 1)) * stack.spacing
         let fixedWidth = containers.filter { !expandedIDs.contains($0.pluginID) }
             .reduce(CGFloat.zero) { $0 + $1.fittingSize.width }
-        let available = max(0, width - scrollLeading.constant)
+        let available = max(0, width - contentLeading.constant)
         let spaceWidth = max(8, (available - fixedWidth - spacing) / CGFloat(max(1, expanding.count)))
         for container in expanding {
             (container.arrangedSubviews.first as? SeparatorView)?.setExpandedWidth(spaceWidth)

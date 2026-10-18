@@ -85,6 +85,7 @@ enum SettingsUI {
 
     static func install(in window: NSWindow, views: [NSView]) {
         window.backgroundColor = .windowBackgroundColor
+        // Settings windows may be taller than the available window height.
         let scroll = NSScrollView()
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true

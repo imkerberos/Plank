@@ -85,7 +85,7 @@ Open **Settings…** from the panel menu.
 | Launch at Login  | Start Plank automatically when you sign in. Install the app in its permanent location first.             |
 | Hide System Dock | Hide the system Dock and keep supported maximized windows clear of Plank. Requires Accessibility access. |
 
-Press Return to apply a custom height. Switching height presets preserves your last custom value. If the panel's contents exceed its width, scroll horizontally to reach them.
+Press Return to apply a custom height. Switching height presets preserves your last custom value. If the panel's contents exceed its width, the excess content is clipped; reorder or hide plugins to make room.
 
 ### Replacing the System Dock
 

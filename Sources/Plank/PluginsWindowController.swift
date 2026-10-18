@@ -35,6 +35,7 @@ final class PluginsWindowController: NSWindowController, NSTableViewDataSource, 
             self.onSettings(self.items[row].id)
         }
         table.onMoveRow = { [weak self] source, destination in self?.moveRow(source, to: destination) }
+        // The plugin manager is a separate window and intentionally scrollable.
         let scroll = NSScrollView()
         scroll.documentView = table
         scroll.hasVerticalScroller = true

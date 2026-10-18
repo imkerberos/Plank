@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var movingPluginID: String?
     private var settingsController: SettingsWindowController?
+    private var aboutController: AboutWindowController?
     private var widthPercentage: Double {
         let stored = UserDefaults.standard.object(forKey: "panelWidthPercentage") as? Double ?? 100
         return stored.isFinite ? min(100, max(10, stored)) : 100
@@ -31,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self
         let pluginsItem = menu.addItem(withTitle: "Plugins…", action: #selector(showPlugins), keyEquivalent: "")
         pluginsItem.target = self
+        let about = menu.addItem(withTitle: "About Plank", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
         let lock = menu.addItem(withTitle: "Lock Panel", action: #selector(toggleLock), keyEquivalent: "")
         lock.target = self
         lock.state = PanelPreferences.isLocked ? .on : .off
@@ -137,6 +140,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pluginsController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         pluginsController?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func showAbout() {
+        if aboutController == nil { aboutController = AboutWindowController() }
+        aboutController?.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        aboutController?.window?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func showPluginSettings(_ sender: NSMenuItem) {

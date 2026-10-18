@@ -44,6 +44,7 @@ jobs:
           name: Plank-macos-universal
           path: |
             dist/*.app.zip
+            dist/*.dmg
             dist/*.sha256
           if-no-files-found: error
           retention-days: 14

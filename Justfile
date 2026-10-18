@@ -115,7 +115,7 @@ verify-app:
     test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/Plank.app/Contents/Info.plist)" = "$(just --quiet version)"
     test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' dist/Plank.app/Contents/Info.plist)" = "$(just --quiet version)"
 
-# Create a zipped app and SHA-256 checksum for download.
+# Create a DMG, zipped app, and SHA-256 checksums for download.
 [positional-arguments]
 package arch="native":
     #!/usr/bin/env bash
@@ -125,6 +125,15 @@ package arch="native":
     architecture="$1"
     if [[ "$architecture" == native ]]; then architecture=$(uname -m); fi
     archive="Plank-$version-macos-$architecture.app.zip"
+    disk_image="Plank-$version-macos-$architecture.dmg"
     ditto -c -k --sequesterRsrc --keepParent dist/Plank.app "dist/$archive"
+    staging=$(mktemp -d)
+    trap 'rm -rf "$staging"' EXIT
+    cp -R dist/Plank.app "$staging/Plank.app"
+    ln -s /Applications "$staging/Applications"
+    hdiutil create -volname "Plank" -srcfolder "$staging" -ov -format UDZO "dist/$disk_image" >/dev/null
+    test -s "dist/$disk_image"
+    hdiutil imageinfo "dist/$disk_image" >/dev/null
     (cd dist && shasum -a 256 "$archive" > "$archive.sha256")
-    echo "Packaged dist/$archive"
+    (cd dist && shasum -a 256 "$disk_image" > "$disk_image.sha256")
+    echo "Packaged dist/$archive and dist/$disk_image"

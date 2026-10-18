@@ -16,9 +16,51 @@ An XFCE-inspired panel for macOS, with app shortcuts, running apps, an applicati
 
 Requires **macOS 14 or later**. Plank sits at the bottom of your primary display and supports multiple desktop Spaces.
 
+## Installation
+
+### 1. Homebrew
+
+```sh
+brew tap imkerberos/plank https://github.com/imkerberos/Plank.git
+brew install --cask imkerberos/plank/plank
+```
+
+The Cask installs the universal macOS app in `/Applications`.
+
+### 2. Download the DMG
+
+Download the [latest Plank DMG](https://github.com/imkerberos/Plank/releases/latest/download/Plank-latest-macos-universal.dmg), open it, and drag `Plank.app` to `/Applications`.
+
+Release builds are ad hoc signed and are not notarized. This verification step may be needed for both Homebrew and DMG installations. If macOS blocks Plank after installing it from a source you trust, either launch it once and choose **Open Anyway** in **System Settings → Privacy & Security**, or remove only this app's quarantine attribute:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Plank.app
+open /Applications/Plank.app
+```
+
+If Homebrew uses a different application directory, replace `/Applications/Plank.app` with the actual path to `Plank.app`.
+
+### 3. Build with Swift
+
+Install Swift 6 or later, then build the executable with Swift Package Manager:
+
+```sh
+git clone https://github.com/imkerberos/Plank.git
+cd Plank
+swift build -c release
+swift run Plank
+```
+
+To create an installable app bundle from the same Swift build, use the repository's Just task:
+
+```sh
+just build-app universal
+open dist/Plank.app
+```
+
 ## Getting Started
 
-1. Copy `Plank.app` to `/Applications` and open it. If you are building from source, follow the [development guide](docs/DEVELOP.md#build-and-run).
+1. Copy `Plank.app` to `/Applications` and open it.
 2. Right-click the panel's left-hand three-dot handle and choose **Settings…** to adjust its appearance.
 3. Choose **Plugins…**, or **Manage Plugins…** in settings, to customize the panel.
 4. Enable **Launch at Login** if you want Plank to start when you sign in. If approval is needed, use **Open Login Items Settings…**.

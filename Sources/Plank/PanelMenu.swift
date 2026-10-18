@@ -180,6 +180,10 @@ final class PanelBackgroundView: NSVisualEffectView {
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }
+
+    // The panel is a fixed surface. Do not let a mouse wheel move its content
+    // horizontally or vertically when plugin content exceeds the panel width.
+    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor
@@ -187,6 +191,10 @@ final class PanelScrollView: NSScrollView {
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }
+
+    // Keep scroll views available for layout overflow, but never scroll the
+    // panel in response to mouse-wheel or trackpad scrolling.
+    override func scrollWheel(with event: NSEvent) {}
 }
 
 @MainActor

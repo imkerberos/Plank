@@ -129,7 +129,6 @@ final class PluginsWindowController: NSWindowController, NSTableViewDataSource, 
     }
 
     private func moveRow(_ source: Int, to row: Int) {
-        guard !PanelPreferences.isLocked else { return }
         guard items.indices.contains(source) else { return }
         let id = items[source].id
         var order = items.map(\.id)
@@ -187,8 +186,29 @@ final class PluginTableView: NSTableView {
     private var dragSource: Int?
     private var dragOrigin = NSPoint.zero
     private var isDraggingRow = false
+    private lazy var insertionIndicator: NSView = {
+        let indicator = NSView()
+        indicator.wantsLayer = true
+        indicator.layer?.cornerRadius = 1
+        indicator.layer?.zPosition = 1_000
+        indicator.isHidden = true
+        addSubview(indicator, positioned: .above, relativeTo: nil)
+        return indicator
+    }()
+
+    private func clearDrag() {
+        dragSource = nil
+        isDraggingRow = false
+        insertionIndicator.isHidden = true
+    }
+
+    override func reloadData() {
+        clearDrag()
+        super.reloadData()
+    }
 
     override func mouseDown(with event: NSEvent) {
+        clearDrag()
         dragOrigin = convert(event.locationInWindow, from: nil)
         let source = row(at: dragOrigin)
         guard source >= 0 else { super.mouseDown(with: event); return }
@@ -203,30 +223,45 @@ final class PluginTableView: NSTableView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard !PanelPreferences.isLocked, dragSource != nil else { return }
+        guard dragSource != nil else { return }
         let point = convert(event.locationInWindow, from: nil)
         if abs(point.y - dragOrigin.y) > 4 || abs(point.x - dragOrigin.x) > 4 { isDraggingRow = true }
         if isDraggingRow {
             autoscroll(with: event)
-            setDropRow(insertionRow(at: point), dropOperation: .above)
+            // Autoscrolling can change the table's coordinates under the pointer.
+            let current = convert(event.locationInWindow, from: nil)
+            guard visibleRect.contains(current) else {
+                insertionIndicator.isHidden = true
+                return
+            }
+            showInsertionIndicator(at: insertionRow(at: current))
         }
     }
 
     override func mouseUp(with event: NSEvent) {
-        defer {
-            dragSource = nil
-            isDraggingRow = false
-            setDropRow(-1, dropOperation: .above)
-        }
+        defer { clearDrag() }
         guard let source = dragSource else { return }
         let point = convert(event.locationInWindow, from: nil)
         let moved = isDraggingRow || abs(point.y - dragOrigin.y) > 4 || abs(point.x - dragOrigin.x) > 4
-        if !PanelPreferences.isLocked && moved && visibleRect.contains(point) { onMoveRow?(source, insertionRow(at: point)) }
+        if moved && visibleRect.contains(point) { onMoveRow?(source, insertionRow(at: point)) }
+    }
+
+    override func cancelOperation(_ sender: Any?) { clearDrag() }
+
+    private func showInsertionIndicator(at row: Int) {
+        let y = row < numberOfRows
+            ? rect(ofRow: row).minY - intercellSpacing.height / 2
+            : rect(ofRow: numberOfRows - 1).maxY + intercellSpacing.height / 2
+        insertionIndicator.frame = NSRect(x: visibleRect.minX + 8,
+                                          y: min(visibleRect.maxY - 2, max(visibleRect.minY, y - 1)),
+                                          width: max(0, visibleRect.width - 16), height: 2)
+        insertionIndicator.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+        insertionIndicator.isHidden = false
     }
 
     private func insertionRow(at point: NSPoint) -> Int {
-        let row = row(at: point)
-        guard row >= 0 else { return point.y < 0 ? 0 : numberOfRows }
-        return point.y > rect(ofRow: row).midY ? row + 1 : row
+        // Include inter-row gaps as well as the blank area after the last row.
+        for row in 0..<numberOfRows where point.y < rect(ofRow: row).midY { return row }
+        return numberOfRows
     }
 }

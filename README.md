@@ -86,7 +86,7 @@ Plugin containers and Taskbar and Launcher buttons fill the panel height, with n
 
 Right-click the panel or its left-hand handle—the three vertical dots—and choose **Plugins…**.
 
-- Drag rows to reorder plugins. The panel updates immediately and saves the order.
+- Drag rows to reorder plugins, including while the panel is locked. A horizontal insertion line follows the pointer to show the destination. The panel updates immediately and saves the order. Press Esc or release outside the list to cancel.
 - Double-click a row to open settings for that instance. Every plugin supports a custom name. Clock settings include **Use 24-Hour Time** and **Show Seconds**; the clock width follows the displayed text.
 - Clock offers **Digital**, **Analog**, and **Binary** styles. Digital and Binary support 12-hour or 24-hour time. Analog uses a 12-hour dial, with an optional second hand. Binary encodes each decimal digit in a column of dots weighted 8, 4, 2, 1 from top to bottom; groups are hours, minutes, and optional seconds. Hover over any style for the full date and readable time. Existing clocks default to Digital, and each instance saves its own style.
 - Choose **Add…** to add Taskbar, Separator, Clock, Trash, Launcher, iMenu, or Show Desktop. Multiple instances of the same type are supported, each with independent settings.

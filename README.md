@@ -109,6 +109,8 @@ Right-click the Taskbar handle for plugin actions. Right-click an application bu
 
 Right-click the Trash icon for **Open Trash** or **Empty Trash…**, including while the panel is locked. Emptying Trash displays a confirmation dialog with **Cancel** as the default. After confirmation, Finder empties the Trash. This requires permission for Plank to control Finder under Privacy & Security → Automation. Emptying Trash permanently deletes its contents.
 
+Trash uses macOS's empty and full Trash icons. It checks Finder's combined Trash (including mounted volumes) at startup and approximately every two seconds, without rebuilding the panel. Reading this status also requires Finder automation permission. If a query fails, the last known icon is retained; before the first successful query, a default empty Trash icon is shown without claiming an empty status. Status queries do not delete or move files.
+
 ## Taskbar
 
 Finder appears first by default. Enable **Hide Finder** in each Taskbar plugin's settings to remove it from that Taskbar. Other applications retain their window opening order.

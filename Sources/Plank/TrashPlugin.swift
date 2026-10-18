@@ -6,13 +6,17 @@ final class TrashPlugin: NSObject, PanelPlugin {
     private let button = TrashButton()
     private var buttonWidth: NSLayoutConstraint!
     private var buttonHeight: NSLayoutConstraint!
+    private var timer: Timer?
+    private var pending: Task<Void, Never>?
+    private var isEmpty: Bool?
     var view: NSView { button }
 
     init(id: String) {
         self.id = id
         super.init()
-        button.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Open Trash")
+        button.image = NSImage(named: NSImage.trashEmptyName)
         button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
         button.isBordered = false
         button.toolTip = "Open Trash in Finder"
         button.target = self
@@ -35,7 +39,38 @@ final class TrashPlugin: NSObject, PanelPlugin {
         buttonHeight.constant = buttonWidth.constant
     }
 
-    func refresh() {}
+    func refresh() {
+        updateTrashState()
+        guard timer == nil else { return }
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.updateTrashState() }
+        }
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+        pending?.cancel()
+        pending = nil
+    }
+
+    private func updateTrashState() {
+        guard pending == nil else { return }
+        pending = Task { @MainActor [weak self] in
+            let empty = await Task.detached(priority: .utility) { TrashStateReader.isEmpty() }.value
+            guard !Task.isCancelled, let self else { return }
+            self.pending = nil
+            // A denied permission or an unavailable Finder is not an empty Trash.
+            // Keep the last known icon until a query succeeds.
+            guard let empty, self.isEmpty != empty else { return }
+            self.isEmpty = empty
+            self.button.image = NSImage(named: empty ? NSImage.trashEmptyName : NSImage.trashFullName)
+            self.button.toolTip = empty ? "Trash is empty · Open in Finder" : "Trash contains items · Open in Finder"
+            self.button.setAccessibilityLabel(empty ? "Trash (Empty)" : "Trash (Contains Items)")
+        }
+    }
 
     func addMenuItems(to menu: NSMenu) {
         let item = menu.addItem(withTitle: "Open Trash", action: #selector(openTrash), keyEquivalent: "")
@@ -60,6 +95,7 @@ final class TrashPlugin: NSObject, PanelPlugin {
         }
         var error: NSDictionary?
         script.executeAndReturnError(&error)
+        updateTrashState()
         if let error {
             // Finder cancellation is a normal outcome, not an error to display.
             guard (error[NSAppleScript.errorNumber] as? NSNumber)?.intValue != -128 else { return }
@@ -96,6 +132,21 @@ final class TrashPlugin: NSObject, PanelPlugin {
     }
 }
 
+/// Finder reports the combined Trash, including items on mounted volumes.
+/// Querying it avoids requiring Full Disk Access to inspect protected directories.
+private enum TrashStateReader {
+    static func isEmpty() -> Bool? {
+        guard let script = NSAppleScript(source: """
+            with timeout of 1 seconds
+                tell application "Finder" to return not (exists item 1 of trash)
+            end timeout
+            """) else { return nil }
+        var error: NSDictionary?
+        let result = script.executeAndReturnError(&error)
+        return error == nil ? result.booleanValue : nil
+    }
+}
+
 @MainActor
 private final class TrashButton: NSButton {
     var onContextMenu: ((NSEvent) -> Void)?
@@ -113,7 +164,8 @@ extension TrashPlugin {
 private final class TrashSettings: PluginSettingsContent {
     init(configuration: PluginConfiguration) {
         super.init(sectionTitle: "How It Works", windowHeight: 430)
-        options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash."),
+        options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash. The icon switches between empty and full as the contents change."),
+                   SettingsUI.help("Reading Trash status requires permission for Plank to control Finder in Privacy & Security → Automation. Status updates every two seconds."),
                    SettingsUI.help("Empty Trash asks for confirmation before permanently deleting items. Finder automation permission is required.")]
     }
 }

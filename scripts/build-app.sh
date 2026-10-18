@@ -27,7 +27,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSAppleEventsUsageDescription</key><string>Plank uses System Events for Lock Screen, Sleep, Restart, and Shut Down, and Finder to empty Trash when you confirm.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Plank uses System Events for Lock Screen, Sleep, Restart, and Shut Down, and Finder to read Trash status and empty Trash when you confirm.</string>
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP"

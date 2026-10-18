@@ -67,7 +67,7 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
         let buttonFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
         let anchor = NSRect(x: buttonFrame.minX, y: window.frame.minY,
                             width: buttonFrame.width, height: window.frame.height)
-        let safe = screen.visibleFrame.insetBy(dx: 8, dy: 8)
+        let safe = screen.visibleFrame
         let above = max(0, safe.maxY - anchor.maxY)
         let below = max(0, anchor.minY - safe.minY)
         let defaults = PluginPreferences.defaults

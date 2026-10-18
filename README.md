@@ -141,7 +141,7 @@ Add **iMenu** in the Plugins window, then click its four-square icon to open a c
 
 In iMenu settings, choose **Display as → List View** (default) or **Icon View**. Icon View arranges larger app icons with names in a grid that adapts to the menu width. Search, arrow-key navigation, and launching work in both modes. Each iMenu saves its display mode independently.
 
-iMenu uses an arrowless rounded floating window that sits flush against the panel. It adjusts its position near the left and right screen edges, retaining an 8 pt screen margin.
+iMenu uses an arrowless rounded floating window that sits flush against the panel and aligns with its button. It shifts only as needed to stay within the usable screen bounds, with no additional screen-edge margin.
 
 Drag the menu's edges or corners to resize it. Each iMenu remembers its size across launches, with screen bounds limiting its maximum size. The menu stays attached to the panel while resizing.
 

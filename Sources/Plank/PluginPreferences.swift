@@ -32,7 +32,7 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
 @MainActor
 enum PluginPreferences {
     static var defaults = UserDefaults.standard
-    static let available = [("taskbar", "Taskbar"), ("separator", "Separator"), ("clock", "Clock"), ("trash", "Trash"), ("launcher", "Launcher"), ("imenu", "iMenu")]
+    static let available = [("taskbar", "Taskbar"), ("separator", "Separator"), ("clock", "Clock"), ("trash", "Trash"), ("launcher", "Launcher"), ("imenu", "iMenu"), ("showdesktop", "Show Desktop")]
 
     static var configurations: [PluginConfiguration] {
         get {
@@ -56,7 +56,7 @@ enum PluginPreferences {
                 }
             }
             // Migrate the original one-per-type configuration, including hidden plugins.
-            let known = available.map { $0.0 }.filter { !["launcher", "imenu"].contains($0) }
+            let known = ["taskbar", "separator", "clock", "trash"]
             let hasLegacyPreferences = defaults.object(forKey: "pluginOrder") != nil
                 || known.contains { defaults.object(forKey: "plugin.\($0).enabled") != nil }
             if !hasLegacyPreferences {

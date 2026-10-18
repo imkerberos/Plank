@@ -7,6 +7,7 @@ struct PluginPreferencesChecks {
     static func main() {
         testMigratesExistingOrderAndHiddenState()
         testDefaultPluginOrder()
+        testShowDesktopPluginLifecycle()
         testTaskbarWindowOrder()
         testClockStyles()
         testAppBadgeContent()
@@ -52,6 +53,25 @@ struct PluginPreferencesChecks {
             precondition(PluginPreferences.configurations.allSatisfy(\.enabled))
             PluginPreferences.setOrder(["trash", "clock", "taskbar", "launcher", "imenu"])
             precondition(PluginPreferences.order == ["trash", "clock", "taskbar", "launcher", "imenu"])
+        }
+    }
+
+    @MainActor
+    static func testShowDesktopPluginLifecycle() {
+        withIsolatedPreferences {
+            let original = PluginPreferences.order
+            let first = PluginPreferences.add(kind: "showdesktop")
+            let second = PluginPreferences.add(kind: "showdesktop")
+            precondition(PluginPreferences.configuration(first)?.name == "Show Desktop")
+            precondition(PluginPreferences.order == original + [first, second])
+            PluginPreferences.setEnabled(false, for: first)
+            precondition(!PluginPreferences.isEnabled(first))
+            precondition(PluginPreferences.isEnabled(second))
+            PluginPreferences.setOrder([second] + original + [first])
+            precondition(PluginPreferences.order.first == second)
+            PluginPreferences.remove(first)
+            PluginPreferences.remove(second)
+            precondition(PluginPreferences.order == original)
         }
     }
 

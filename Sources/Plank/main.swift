@@ -163,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered, defer: false
         )
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -276,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let width = screen.frame.width * widthPercentage / 100
         let height = PanelPreferences.height
         let locked = PanelPreferences.isLocked
-        panel.collectionBehavior = systemDock.isActive ? [.canJoinAllSpaces] : [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = systemDock.isActive ? [.canJoinAllSpaces, .stationary] : [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isMovable = false
         panel.isMovableByWindowBackground = false
         scrollLeading.constant = locked ? 0 : 24

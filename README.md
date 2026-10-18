@@ -89,11 +89,17 @@ Right-click the panel or its left-hand handle—the three vertical dots—and ch
 - Drag rows to reorder plugins. The panel updates immediately and saves the order.
 - Double-click a row to open settings for that instance. Every plugin supports a custom name. Clock settings include **Use 24-Hour Time** and **Show Seconds**; the clock width follows the displayed text.
 - Clock offers **Digital**, **Analog**, and **Binary** styles. Digital and Binary support 12-hour or 24-hour time. Analog uses a 12-hour dial, with an optional second hand. Binary encodes each decimal digit in a column of dots weighted 8, 4, 2, 1 from top to bottom; groups are hours, minutes, and optional seconds. Hover over any style for the full date and readable time. Existing clocks default to Digital, and each instance saves its own style.
-- Choose **Add…** to add Taskbar, Separator, Clock, Trash, Launcher, or iMenu. Multiple instances of the same type are supported, each with independent settings.
+- Choose **Add…** to add Taskbar, Separator, Clock, Trash, Launcher, iMenu, or Show Desktop. Multiple instances of the same type are supported, each with independent settings.
 - Select a row and choose **Remove** to remove that instance.
 - Hidden instances remain in the list. Right-click a hidden row and choose **Show Plugin** to restore it.
 
 Separator supports **Line** and **Space** styles. Space can have a fixed width of 8–400 pt, or **Expand to fill remaining panel space**. Multiple expanding spaces share the available width equally. When content overflows, spaces retain a minimum width and the panel scrolls horizontally.
+
+## Show Desktop
+
+Add **Show Desktop** from the Plugins window. Click its monitor icon to move windows aside and reveal the desktop; click again to restore them. The panel stays visible during Show Desktop. The button supports all panel sizes, including Tiny (32 pt), and remains usable while the panel is locked.
+
+This plugin uses the Dock's internal `CoreDockSendNotification` interface with `com.apple.showdesktop.awake`, following [Hammerspoon's implementation](https://github.com/Hammerspoon/hammerspoon/blob/master/extensions/spaces/spaces.lua). It does not require Hammerspoon, send keyboard shortcuts, or minimize individual windows. The interface is private and may change in future macOS versions; if it cannot be loaded or returns an error, Plank displays an error instead of attempting a different action. It leaves multi-display and Spaces behavior to macOS and does not maintain its own active-state indicator.
 
 ## Context Menus
 

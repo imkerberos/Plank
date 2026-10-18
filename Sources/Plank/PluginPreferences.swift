@@ -12,6 +12,7 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     // Optional fields keep configurations saved by earlier versions decodable.
     var use24HourTime: Bool?
     var clockStyle: String?
+    var clockOpensCalendar: Bool?
     var taskbarStyle: String?
     var taskbarMaximumWidth: Double?
     var taskbarHideFinder: Bool?

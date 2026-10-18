@@ -117,6 +117,8 @@ The menu provides list and icon-grid modes, filtering, keyboard navigation, and 
 
 `SeparatorPlugin.swift` supplies settings for Line or Space. `SeparatorView` draws a one-point line explicitly across the full panel height, avoiding disappearing `NSBox.separator` rendering at narrow widths. Space accepts fixed widths of 8–400 pt or expansion to fill remaining panel width.
 
+Clock’s optional `clockOpensCalendar` setting defaults to off for older and new instances. Its display routes clicks and accessibility presses to Launch Services using Calendar’s `com.apple.iCal` identifier; it does not read calendar data or require Calendar/Automation permission. Pointer drags are excluded from launching, and right-click plugin menus retain their behavior.
+
 ### Folder
 
 `FolderPlugin.swift` contains the folder button and its settings. The optional `folderPath` field is saved per instance; an unset path defaults to the user’s home directory. Settings use a directory-only `NSOpenPanel`, and cancellation leaves the previous selection intact. The plugin shows the directory’s system icon and opens its contents explicitly through Finder, validating that the directory still exists before opening. It does not require Finder Automation permission for this Launch Services operation.

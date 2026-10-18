@@ -148,8 +148,15 @@ struct PluginPreferencesChecks {
             let old = #"[{"id":"clock","kind":"clock","name":"Clock","enabled":true,"separatorStyle":"line","spaceWidth":24,"expand":false,"showSeconds":true}]"#
             PluginPreferences.defaults.set(Data(old.utf8), forKey: "pluginConfigurations")
             precondition(PluginPreferences.configuration("clock")?.clockDisplayStyle == .digital)
+            precondition(PluginPreferences.configuration("clock")?.clockOpensCalendar != true)
             let second = PluginPreferences.add(kind: "clock")
-            PluginPreferences.update(second) { $0.clockStyle = "binary"; $0.use24HourTime = true }
+            PluginPreferences.update(second) {
+                $0.clockStyle = "binary"
+                $0.use24HourTime = true
+                $0.clockOpensCalendar = true
+            }
+            precondition(PluginPreferences.configuration(second)?.clockOpensCalendar == true)
+            precondition(PluginPreferences.configuration("clock")?.clockOpensCalendar != true)
             precondition(PluginPreferences.configuration("clock")?.clockDisplayStyle == .digital)
             precondition(PluginPreferences.configuration(second)?.clockDisplayStyle == .binary)
             PluginPreferences.update(second) { $0.clockStyle = "unknown" }

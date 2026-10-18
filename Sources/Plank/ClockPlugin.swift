@@ -28,7 +28,34 @@ final class ClockPlugin: PanelPlugin {
     var onWidthChanged: (() -> Void)?
     var view: NSView { display }
 
-    init(id: String) { self.id = id }
+    init(id: String) {
+        self.id = id
+        display.onOpenCalendar = { [weak self] in self?.openCalendar() }
+    }
+
+    private func openCalendar() {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iCal") else {
+            showCalendarError("Calendar could not be found on this Mac.")
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.createsNewApplicationInstance = false
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
+            if let error {
+                let message = error.localizedDescription
+                Task { @MainActor [weak self] in self?.showCalendarError(message) }
+            }
+        }
+    }
+
+    private func showCalendarError(_ message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Unable to Open Calendar"
+        alert.informativeText = message
+        alert.runModal()
+    }
 
     func setPanelHeight(_ height: CGFloat) { display.setHeight(height) }
 
@@ -53,6 +80,9 @@ final class ClockPlugin: PanelPlugin {
 
 @MainActor
 private final class ClockDisplayView: NSView {
+    var onOpenCalendar: (() -> Void)?
+    private var opensCalendar = false
+    private var pressOrigin: NSPoint?
     private let label = NSTextField(labelWithString: "")
     private let formatter = DateFormatter()
     private var style = ClockStyle.digital
@@ -91,6 +121,7 @@ private final class ClockDisplayView: NSView {
         style = configuration?.clockDisplayStyle ?? .digital
         showSeconds = configuration?.showSeconds ?? false
         use24HourTime = configuration?.use24HourTime ?? false
+        opensCalendar = configuration?.clockOpensCalendar == true
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
@@ -103,10 +134,10 @@ private final class ClockDisplayView: NSView {
         label.stringValue = text
         label.isHidden = style != .digital
         let dateText = date.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(Locale(identifier: "en_US")))
-        toolTip = "\(dateText) · \(text)"
-        setAccessibilityElement(style != .digital)
-        setAccessibilityRole(.image)
-        setAccessibilityLabel("\(style.title) clock")
+        toolTip = "\(dateText) · \(text)" + (opensCalendar ? " · Click to open Calendar" : "")
+        setAccessibilityElement(opensCalendar || style != .digital)
+        setAccessibilityRole(opensCalendar ? .button : .image)
+        setAccessibilityLabel(opensCalendar ? "Open Calendar" : "\(style.title) clock")
         setAccessibilityValue(text)
         let width: CGFloat
         switch style {
@@ -197,6 +228,34 @@ private final class ClockDisplayView: NSView {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
         else { super.rightMouseDown(with: event) }
     }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point) == nil ? nil : self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        pressOrigin = opensCalendar ? event.locationInWindow : nil
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let origin = pressOrigin else { return }
+        if abs(event.locationInWindow.x - origin.x) > 4 || abs(event.locationInWindow.y - origin.y) > 4 {
+            pressOrigin = nil
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer { pressOrigin = nil }
+        guard opensCalendar, pressOrigin != nil,
+              bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        onOpenCalendar?()
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard opensCalendar, let onOpenCalendar else { return false }
+        onOpenCalendar()
+        return true
+    }
 }
 
 @MainActor
@@ -212,6 +271,7 @@ private final class ClockSettings: PluginSettingsContent {
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
     private let clockStyle = NSPopUpButton()
     private let clockHint = SettingsUI.help("")
+    private let openCalendar = NSButton(checkboxWithTitle: "Open Calendar on Click", target: nil, action: nil)
 
     init(configuration: PluginConfiguration) {
         super.init(sectionTitle: "Clock Display", windowHeight: 520)
@@ -227,7 +287,10 @@ private final class ClockSettings: PluginSettingsContent {
         seconds.state = configuration.showSeconds ? .on : .off
         seconds.target = self
         seconds.action = #selector(requestSave)
-        options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
+        openCalendar.state = configuration.clockOpensCalendar == true ? .on : .off
+        openCalendar.target = self
+        openCalendar.action = #selector(requestSave)
+        options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, openCalendar, clockHint,
                    SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
     }
 
@@ -248,5 +311,6 @@ private final class ClockSettings: PluginSettingsContent {
         }
         config.showSeconds = seconds.state == .on
         config.use24HourTime = use24HourTime.state == .on
+        config.clockOpensCalendar = openCalendar.state == .on
     }
 }

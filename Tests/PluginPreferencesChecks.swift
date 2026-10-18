@@ -20,6 +20,7 @@ struct PluginPreferencesChecks {
         testDockRestorationAndRecovery()
         testReservedWorkspace()
         testPanelHeightSettings()
+        testPanelThemeSettings()
         testTaskbarSettingsCompatibility()
         print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry")
     }
@@ -298,6 +299,20 @@ struct PluginPreferencesChecks {
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 80)
             PluginPreferences.update("taskbar") { $0.taskbarMaximumWidth = 900 }
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 400)
+        }
+    }
+
+    @MainActor
+    static func testPanelThemeSettings() {
+        withIsolatedPreferences {
+            precondition(PanelPreferences.theme == .system)
+            for theme in PanelTheme.allCases {
+                PanelPreferences.theme = theme
+                precondition(PanelPreferences.theme == theme)
+                precondition(PluginPreferences.defaults.string(forKey: "panelTheme") == theme.rawValue)
+            }
+            PluginPreferences.defaults.set("unknown", forKey: "panelTheme")
+            precondition(PanelPreferences.theme == .system)
         }
     }
 

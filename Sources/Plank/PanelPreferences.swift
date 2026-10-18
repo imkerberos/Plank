@@ -1,5 +1,17 @@
 import Foundation
 
+enum PanelTheme: String, CaseIterable {
+    case system, dark, light
+
+    var title: String {
+        switch self {
+        case .system: "Follow System"
+        case .dark: "Dark"
+        case .light: "Light"
+        }
+    }
+}
+
 enum PanelHeightPreset: String, CaseIterable {
     case large, medium, small, tiny, custom
 
@@ -16,6 +28,10 @@ enum PanelHeightPreset: String, CaseIterable {
 
 @MainActor
 enum PanelPreferences {
+    static var theme: PanelTheme {
+        get { PanelTheme(rawValue: PluginPreferences.defaults.string(forKey: "panelTheme") ?? "") ?? .system }
+        set { PluginPreferences.defaults.set(newValue.rawValue, forKey: "panelTheme") }
+    }
     static var hideSystemDock: Bool {
         get { PluginPreferences.defaults.bool(forKey: "hideSystemDock") }
         set { PluginPreferences.defaults.set(newValue, forKey: "hideSystemDock") }

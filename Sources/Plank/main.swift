@@ -156,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ThemeController.apply()
         NSApp.setActivationPolicy(.accessory)
         panel = Panel(
             contentRect: .zero,

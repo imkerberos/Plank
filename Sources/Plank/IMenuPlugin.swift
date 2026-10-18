@@ -435,10 +435,17 @@ private final class ApplicationsIconGrid: NSView {
     }
 
     private func updateSelection() {
-        for (index, button) in buttons.enumerated() {
-            button.layer?.backgroundColor = index == selectedIndex
-                ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            for (index, button) in buttons.enumerated() {
+                button.layer?.backgroundColor = index == selectedIndex
+                    ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+            }
         }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateSelection()
     }
 
     @objc private func launch(_ sender: NSButton) { onLaunch?(sender.tag) }

@@ -122,6 +122,10 @@ private final class SettingsCardView: NSView {
     }
     required init?(coder: NSCoder) { nil }
     override var wantsUpdateLayer: Bool { true }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
     override func updateLayer() {
         layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         layer?.cornerRadius = 12

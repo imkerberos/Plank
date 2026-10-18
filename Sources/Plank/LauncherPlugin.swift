@@ -118,6 +118,7 @@ private final class LauncherButton: NSButton {
     private var pressOrigin: NSPoint?
     private var isReordering = false
     private var feedbackTask: Task<Void, Never>?
+    private var pressedFeedback = false
 
     init(path: String, size: CGFloat) {
         applicationURL = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
@@ -238,9 +239,17 @@ private final class LauncherButton: NSButton {
     }
 
     private func setPressedFeedback(_ pressed: Bool) {
-        layer?.backgroundColor = pressed ? NSColor.controlAccentColor.withAlphaComponent(0.25).cgColor : nil
-        layer?.borderWidth = pressed ? 1 : 0
-        layer?.borderColor = NSColor.controlAccentColor.withAlphaComponent(0.5).cgColor
+        pressedFeedback = pressed
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = pressed ? NSColor.controlAccentColor.withAlphaComponent(0.25).cgColor : nil
+            layer?.borderWidth = pressed ? 1 : 0
+            layer?.borderColor = NSColor.controlAccentColor.withAlphaComponent(0.5).cgColor
+        }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        setPressedFeedback(pressedFeedback)
     }
 
     @objc private func openApplication() {

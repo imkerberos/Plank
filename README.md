@@ -25,6 +25,7 @@ Open **Settings…** from the panel menu.
 
 | Setting          | Options                                                                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| Theme | Follow System (default), Dark, or Light. Applies immediately to the panel, menus, and settings. |
 | Width            | 10%–100% of the screen; defaults to 100%. Full-width panels have square corners.                         |
 | Height           | Tiny (32 pt), Small (48 pt), Medium (64 pt), Large (80 pt), or Custom (32–128 pt). Defaults to Medium.   |
 | Launch at Login  | Start Plank automatically when you sign in. Install the app in its permanent location first.             |

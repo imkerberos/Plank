@@ -3,11 +3,13 @@ import AppKit
 @MainActor
 final class ApplicationButton: NSButton, NSDraggingSource {
     private let application: NSRunningApplication
+    private let showsTitle: Bool
     private var pressOrigin: NSPoint?
     private var isDraggingApplication = false
 
     init(application: NSRunningApplication, showsTitle: Bool = false, maximumWidth: Double = 180, buttonSize: CGFloat = 44) {
         self.application = application
+        self.showsTitle = showsTitle
         super.init(frame: .zero)
         let name = application.localizedName ?? "Application"
         isBordered = false
@@ -18,9 +20,7 @@ final class ApplicationButton: NSButton, NSDraggingSource {
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
         layer?.cornerRadius = 0
-        layer?.backgroundColor = application.isActive
-            ? NSColor.controlAccentColor.withAlphaComponent(0.25).cgColor
-            : (showsTitle ? NSColor.labelColor.withAlphaComponent(0.06).cgColor : nil)
+        updateBackground()
 
         let buttonWidth: CGFloat
         if showsTitle {
@@ -70,6 +70,19 @@ final class ApplicationButton: NSButton, NSDraggingSource {
     }
 
     required init?(coder: NSCoder) { nil }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateBackground()
+    }
+
+    private func updateBackground() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = application.isActive
+                ? NSColor.controlAccentColor.withAlphaComponent(0.25).cgColor
+                : (showsTitle ? NSColor.labelColor.withAlphaComponent(0.06).cgColor : nil)
+        }
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         super.hitTest(point) == nil ? nil : self

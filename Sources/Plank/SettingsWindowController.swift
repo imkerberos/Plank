@@ -8,6 +8,7 @@ final class SettingsWindowController: NSWindowController {
     private let onChange: (Double) -> Void
     private let heightPreset = NSPopUpButton()
     private let customHeight = NSTextField()
+    private let theme = NSPopUpButton()
     private let onHeightChanged: () -> Void
     private let hideDock = NSButton(checkboxWithTitle: "Hide System Dock", target: nil, action: nil)
     private let dockStatus = NSTextField(wrappingLabelWithString: "")
@@ -74,7 +75,13 @@ final class SettingsWindowController: NSWindowController {
                                                name: NSApplication.didBecomeActiveNotification, object: nil)
         let loginSettings = NSButton(title: "Open Login Items Settings…", target: self, action: #selector(openLoginSettings))
         let widthGroup = SettingsUI.vertical([SettingsUI.row("Width", control: valueLabel), slider, hint], spacing: 8)
-        let display = SettingsUI.card("Appearance", views: [widthGroup,
+        theme.addItems(withTitles: PanelTheme.allCases.map(\.title))
+        theme.selectItem(at: PanelTheme.allCases.firstIndex(of: PanelPreferences.theme) ?? 0)
+        theme.target = self
+        theme.action = #selector(themeChanged)
+        theme.widthAnchor.constraint(equalToConstant: 180).isActive = true
+        theme.setAccessibilityLabel("Panel theme")
+        let display = SettingsUI.card("Appearance", views: [SettingsUI.row("Theme", control: theme), widthGroup,
             SettingsUI.row("Height", control: heightRow)])
         let startup = SettingsUI.card("Startup", views: [launchAtLogin, loginStatus, SettingsUI.row("", control: loginSettings)])
         let dock = SettingsUI.card("System Dock", views: [hideDock, dockHint, dockStatus, SettingsUI.row("", control: permission)])
@@ -158,6 +165,12 @@ final class SettingsWindowController: NSWindowController {
     }
 
     @objc private func showPlugins() { onShowPlugins() }
+
+    @objc private func themeChanged() {
+        guard PanelTheme.allCases.indices.contains(theme.indexOfSelectedItem) else { return }
+        PanelPreferences.theme = PanelTheme.allCases[theme.indexOfSelectedItem]
+        ThemeController.apply()
+    }
 
     @objc private func heightChanged() {
         let index = heightPreset.indexOfSelectedItem

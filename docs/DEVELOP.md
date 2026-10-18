@@ -77,6 +77,12 @@ Width defaults to 100%, with square corners at that width and rounded corners be
 
 Panel locking prevents direct panel-side plugin moves and Launcher shortcut drags. The Plugins management window intentionally remains editable while locked. Its custom table drag handling draws an explicit insertion line; Esc, an outside release, or a reload clears the drag state.
 
+## Themes
+
+`PanelPreferences.theme` persists `system`, `dark`, or `light` under `panelTheme`, defaulting to system for missing or unknown values. `ThemeController` sets `NSApplication.appearance` to nil, Dark Aqua, or Aqua so existing and future windows, panels, and popovers share the choice. A nil override keeps system appearance changes live without polling or changing macOS settings.
+
+Views use semantic AppKit colors and adaptive visual-effect materials. Custom Core Animation colors are resolved under the view’s effective appearance and refreshed on appearance changes, including Taskbar backgrounds, Launcher feedback, iMenu grid selection, and settings cards. Verify both live switching and saved startup appearance.
+
 ## Plugin Implementation Notes
 
 ### Taskbar

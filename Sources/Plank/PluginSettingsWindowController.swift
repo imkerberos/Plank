@@ -17,6 +17,7 @@ final class PluginSettingsWindowController: NSWindowController {
     private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
     private let clockStyle = NSPopUpButton()
+    private let imenuViewMode = NSPopUpButton()
     private let clockHint = SettingsUI.help("")
 
     init(configuration: PluginConfiguration, onChange: @escaping () -> Void) {
@@ -101,7 +102,15 @@ final class PluginSettingsWindowController: NSWindowController {
             options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
                        SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
         } else if configuration.kind == "imenu" {
-            options = [SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
+            sectionTitle = "Applications Menu"
+            imenuViewMode.addItems(withTitles: ["List View", "Icon View"])
+            imenuViewMode.selectItem(at: configuration.imenuShowsIcons ? 1 : 0)
+            imenuViewMode.target = self
+            imenuViewMode.action = #selector(save)
+            imenuViewMode.widthAnchor.constraint(equalToConstant: 160).isActive = true
+            imenuViewMode.setAccessibilityLabel("Applications display mode")
+            options = [SettingsUI.row("Display as", control: imenuViewMode),
+                       SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
                        SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
         } else if configuration.kind == "launcher" {
             showRunningIndicator.state = configuration.launcherShowRunningIndicator == true ? .on : .off
@@ -171,6 +180,9 @@ final class PluginSettingsWindowController: NSWindowController {
             }
             if config.kind == "launcher" {
                 config.launcherShowRunningIndicator = showRunningIndicator.state == .on
+            }
+            if config.kind == "imenu" {
+                config.imenuViewMode = imenuViewMode.indexOfSelectedItem == 1 ? "icons" : "list"
             }
         }
         updateControls()

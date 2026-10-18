@@ -1,10 +1,13 @@
 import AppKit
 
 @MainActor
-final class IMenuPlugin: NSObject, PanelPlugin {
+final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
     let id: String
     private let button = NSButton()
-    private let menuPanel = ApplicationsMenuPanel(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
+    private let menuPanel = ApplicationsMenuPanel(contentRect: .zero, styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
+    private var menuAnchor: NSRect?
+    private var menuSafeFrame: NSRect?
+    private var opensAbove = true
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private let menuController = ApplicationsMenuController()
@@ -28,6 +31,8 @@ final class IMenuPlugin: NSObject, PanelPlugin {
         buttonHeight = button.heightAnchor.constraint(equalToConstant: 44)
         NSLayoutConstraint.activate([buttonWidth, buttonHeight])
         menuPanel.isReleasedWhenClosed = false
+        menuPanel.delegate = self
+        menuPanel.isMovable = false
         menuPanel.isOpaque = false
         menuPanel.backgroundColor = .clear
         menuPanel.hasShadow = true
@@ -51,10 +56,13 @@ final class IMenuPlugin: NSObject, PanelPlugin {
             .withSymbolConfiguration(configuration)
     }
 
-    func refresh() {}
+    func refresh() {
+        menuController.setIconView(PluginPreferences.configuration(id)?.imenuShowsIcons == true)
+    }
 
     @objc private func toggleMenu() {
         if menuPanel.isVisible { closeMenu(); return }
+        refresh()
         guard let window = button.window, let screen = window.screen else { return }
         let buttonFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
         let anchor = NSRect(x: buttonFrame.minX, y: window.frame.minY,
@@ -62,18 +70,41 @@ final class IMenuPlugin: NSObject, PanelPlugin {
         let safe = screen.visibleFrame.insetBy(dx: 8, dy: 8)
         let above = max(0, safe.maxY - anchor.maxY)
         let below = max(0, anchor.minY - safe.minY)
-        let size = NSSize(width: min(400, safe.width),
-                          height: min(480, max(200, max(above, below)), safe.height))
+        let defaults = PluginPreferences.defaults
+        let savedWidth = defaults.double(forKey: "plugin.\(id).menuWidth")
+        let savedHeight = defaults.double(forKey: "plugin.\(id).menuHeight")
+        let availableHeight = min(max(above, below), safe.height)
+        let maximum = NSSize(width: safe.width, height: availableHeight)
+        let minimum = NSSize(width: min(360, maximum.width), height: min(300, maximum.height))
+        let size = NSSize(width: min(maximum.width, max(minimum.width, savedWidth.isFinite && savedWidth > 0 ? savedWidth : 400)),
+                          height: min(maximum.height, max(minimum.height, savedHeight.isFinite && savedHeight > 0 ? savedHeight : 480)))
+        menuAnchor = anchor
+        menuSafeFrame = safe
+        opensAbove = above >= below
+        menuPanel.contentMinSize = minimum
+        menuPanel.contentMaxSize = maximum
         let x = min(max(anchor.minX, safe.minX), safe.maxX - size.width)
         let preferredY = above >= below ? anchor.maxY : anchor.minY - size.height
         let y = min(max(preferredY, safe.minY), safe.maxY - size.height)
-        menuController.preferredContentSize = size
         menuPanel.setContentSize(size)
         menuPanel.setFrameOrigin(NSPoint(x: x, y: y))
         NSApp.activate(ignoringOtherApps: true)
         menuPanel.makeKeyAndOrderFront(nil)
         installDismissMonitors()
         menuController.beginSearch()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard menuPanel.inLiveResize, let anchor = menuAnchor, let safe = menuSafeFrame else { return }
+        let size = menuPanel.frame.size
+        let x = min(max(anchor.minX, safe.minX), safe.maxX - size.width)
+        let y = opensAbove ? anchor.maxY : anchor.minY - size.height
+        menuPanel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        PluginPreferences.defaults.set(menuPanel.frame.width, forKey: "plugin.\(id).menuWidth")
+        PluginPreferences.defaults.set(menuPanel.frame.height, forKey: "plugin.\(id).menuHeight")
     }
 
     private func installDismissMonitors() {
@@ -135,6 +166,9 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
     var onSystemAction: ((SystemSessionAction) -> Void)?
     private let search = NSSearchField()
     private let table = ApplicationsTableView()
+    private let grid = ApplicationsIconGrid()
+    private let scroll = NSScrollView()
+    private var showsIcons = false
     private let status = NSTextField(labelWithString: "Loading applications…")
     private var applications: [CatalogApplication] = []
     private var filtered: [CatalogApplication] = []
@@ -167,10 +201,14 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         table.onReturn = { [weak self] in self?.launchSelected() }
         table.onEscape = { [weak self] in self?.onClose?() }
         table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
-        let scroll = NSScrollView()
-        scroll.documentView = table
+        scroll.documentView = showsIcons ? grid : table
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
+        grid.onLaunch = { [weak self] index in
+            guard let self, self.filtered.indices.contains(index) else { return }
+            self.onLaunch?(self.filtered[index])
+        }
+        grid.onEscape = { [weak self] in self?.onClose?() }
         status.textColor = .secondaryLabelColor
         status.font = .systemFont(ofSize: 11)
         status.lineBreakMode = .byTruncatingTail
@@ -235,13 +273,26 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
 
     func cancelLoading() { loadingTask?.cancel(); loadingTask = nil }
 
+    func setIconView(_ enabled: Bool) {
+        guard showsIcons != enabled else { return }
+        showsIcons = enabled
+        guard isViewLoaded else { return }
+        scroll.documentView = enabled ? grid : table
+        applyFilter()
+    }
+
     func controlTextDidChange(_ obj: Notification) { applyFilter() }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         if commandSelector == #selector(NSResponder.moveDown(_:)) {
             guard !filtered.isEmpty else { return true }
-            table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-            view.window?.makeFirstResponder(table)
+            if showsIcons {
+                grid.select(0)
+                view.window?.makeFirstResponder(grid)
+            } else {
+                table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+                view.window?.makeFirstResponder(table)
+            }
             return true
         }
         if commandSelector == #selector(NSResponder.insertNewline(_:)) { launchSelected(); return true }
@@ -252,6 +303,7 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
     private func applyFilter() {
         filtered = CatalogApplication.matching(search.stringValue, in: applications)
         table.reloadData()
+        if showsIcons { grid.setApplications(filtered) }
         if !filtered.isEmpty {
             table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
             table.scrollRowToVisible(0)
@@ -301,8 +353,106 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
     }
 
     private func launchSelected() {
+        if showsIcons {
+            guard filtered.indices.contains(grid.selectedIndex) else { return }
+            onLaunch?(filtered[grid.selectedIndex])
+            return
+        }
         guard filtered.indices.contains(table.selectedRow) else { return }
         onLaunch?(filtered[table.selectedRow])
+    }
+}
+
+@MainActor
+private final class ApplicationsIconGrid: NSView {
+    var onLaunch: ((Int) -> Void)?
+    var onEscape: (() -> Void)?
+    private var buttons: [NSButton] = []
+    private(set) var selectedIndex = -1
+    private var columns = 1
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+
+    func setApplications(_ applications: [CatalogApplication]) {
+        buttons.forEach { $0.removeFromSuperview() }
+        buttons = applications.enumerated().map { index, application in
+            let button = NSButton(title: application.name, target: self, action: #selector(launch(_:)))
+            let icon = NSWorkspace.shared.icon(forFile: application.url.path)
+            icon.size = NSSize(width: 44, height: 44)
+            button.image = icon
+            button.imagePosition = .imageAbove
+            button.imageScaling = .scaleProportionallyDown
+            button.isBordered = false
+            button.font = .systemFont(ofSize: 11)
+            button.cell?.lineBreakMode = .byTruncatingTail
+            button.toolTip = "\(application.name) · \(application.url.path)"
+            button.setAccessibilityLabel(application.name)
+            button.tag = index
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 8
+            addSubview(button)
+            return button
+        }
+        selectedIndex = buttons.isEmpty ? -1 : 0
+        updateSelection()
+        needsLayout = true
+        enclosingScrollView?.contentView.scroll(to: .zero)
+    }
+
+    override func layout() {
+        super.layout()
+        guard let clip = enclosingScrollView?.contentView else { return }
+        let width = clip.bounds.width
+        columns = max(1, Int(width / 88))
+        let cellWidth = width / CGFloat(columns)
+        for (index, button) in buttons.enumerated() {
+            button.frame = NSRect(x: CGFloat(index % columns) * cellWidth + 3,
+                                  y: CGFloat(index / columns) * 88 + 3,
+                                  width: max(1, cellWidth - 6), height: 82)
+        }
+        let height = max(clip.bounds.height, CGFloat((buttons.count + columns - 1) / columns) * 88)
+        let size = NSSize(width: width, height: height)
+        if frame.size != size { setFrameSize(size) }
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        autoresizingMask = [.width]
+        needsLayout = true
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let changed = frame.size != newSize
+        super.setFrameSize(newSize)
+        if changed { needsLayout = true }
+    }
+
+    func select(_ index: Int) {
+        guard !buttons.isEmpty else { return }
+        selectedIndex = min(buttons.count - 1, max(0, index))
+        updateSelection()
+        scrollToVisible(buttons[selectedIndex].frame)
+    }
+
+    private func updateSelection() {
+        for (index, button) in buttons.enumerated() {
+            button.layer?.backgroundColor = index == selectedIndex
+                ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+        }
+    }
+
+    @objc private func launch(_ sender: NSButton) { onLaunch?(sender.tag) }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 123: select(selectedIndex - 1)
+        case 124: select(selectedIndex + 1)
+        case 125: select(selectedIndex + columns)
+        case 126: select(selectedIndex - columns)
+        case 36, 76: if selectedIndex >= 0 { onLaunch?(selectedIndex) }
+        case 53: onEscape?()
+        default: super.keyDown(with: event)
+        }
     }
 }
 

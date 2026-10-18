@@ -17,6 +17,9 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     var taskbarHideFinder: Bool?
     var taskbarHideLauncherApps: Bool?
     var launcherShowRunningIndicator: Bool?
+    var imenuViewMode: String?
+
+    var imenuShowsIcons: Bool { imenuViewMode == "icons" }
 
     var taskbarShowsTitles: Bool { taskbarStyle == "iconAndTitle" }
     var clockDisplayStyle: ClockStyle { ClockStyle(rawValue: clockStyle ?? "") ?? .digital }

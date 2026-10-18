@@ -254,6 +254,14 @@ struct PluginPreferencesChecks {
             PluginPreferences.update(launcher) { $0.launcherShowRunningIndicator = true }
             precondition(PluginPreferences.configuration(launcher)?.launcherShowRunningIndicator == true)
             precondition(PluginPreferences.configuration(otherLauncher)?.launcherShowRunningIndicator != true)
+            let imenu = PluginPreferences.add(kind: "imenu")
+            let otherMenu = PluginPreferences.add(kind: "imenu")
+            precondition(PluginPreferences.configuration(imenu)?.imenuShowsIcons == false)
+            PluginPreferences.update(imenu) { $0.imenuViewMode = "icons" }
+            precondition(PluginPreferences.configuration(imenu)?.imenuShowsIcons == true)
+            precondition(PluginPreferences.configuration(otherMenu)?.imenuShowsIcons == false)
+            PluginPreferences.update(imenu) { $0.imenuViewMode = "unknown" }
+            precondition(PluginPreferences.configuration(imenu)?.imenuShowsIcons == false)
             PluginPreferences.update("taskbar") { $0.taskbarMaximumWidth = -1 }
             precondition(PluginPreferences.configuration("taskbar")?.taskbarButtonMaximumWidth == 80)
             PluginPreferences.update("taskbar") { $0.taskbarMaximumWidth = 900 }

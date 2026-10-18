@@ -3,6 +3,8 @@ import AppKit
 /// Built-in plugins own their views and resources; the panel owns their lifetime.
 @MainActor
 protocol PanelPlugin: AnyObject {
+    init(id: String)
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent
     var id: String { get }
     var view: NSView { get }
     func setPanelHeight(_ height: CGFloat)

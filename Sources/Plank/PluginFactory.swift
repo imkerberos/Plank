@@ -1,13 +1,23 @@
 import AppKit
 
 @MainActor
+func makePluginSettings(_ config: PluginConfiguration) -> PluginSettingsContent {
+    pluginType(for: config.kind).makeSettings(configuration: config)
+}
+
+@MainActor
 func makePlugin(_ config: PluginConfiguration) -> any PanelPlugin {
-    switch config.kind {
-    case "taskbar": TaskbarPlugin(id: config.id)
-    case "separator": SeparatorPlugin(id: config.id)
-    case "clock": ClockPlugin(id: config.id)
-    case "launcher": LauncherPlugin(id: config.id)
-    case "imenu": IMenuPlugin(id: config.id)
-    default: TrashPlugin(id: config.id)
+    pluginType(for: config.kind).init(id: config.id)
+}
+
+@MainActor
+private func pluginType(for kind: String) -> any PanelPlugin.Type {
+    switch kind {
+    case "taskbar": TaskbarPlugin.self
+    case "separator": SeparatorPlugin.self
+    case "clock": ClockPlugin.self
+    case "launcher": LauncherPlugin.self
+    case "imenu": IMenuPlugin.self
+    default: TrashPlugin.self
     }
 }

@@ -6,28 +6,18 @@ final class PluginSettingsWindowController: NSWindowController {
     private let onChange: () -> Void
     private let nameField = NSTextField()
     private let heading = NSTextField(labelWithString: "")
-    private let style = NSPopUpButton()
-    private let width = NSTextField()
-    private let expand = NSButton(checkboxWithTitle: "Expand to fill remaining panel space", target: nil, action: nil)
-    private let taskbarStyle = NSPopUpButton()
-    private let taskbarWidth = NSTextField()
-    private let hideFinder = NSButton(checkboxWithTitle: "Hide Finder", target: nil, action: nil)
-    private let hideLauncherApps = NSButton(checkboxWithTitle: "Hide apps in Launcher", target: nil, action: nil)
-    private let showRunningIndicator = NSButton(checkboxWithTitle: "Show running app indicator", target: nil, action: nil)
-    private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
-    private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
-    private let clockStyle = NSPopUpButton()
-    private let imenuViewMode = NSPopUpButton()
-    private let clockHint = SettingsUI.help("")
+    private let settings: PluginSettingsContent
 
     init(configuration: PluginConfiguration, onChange: @escaping () -> Void) {
         pluginID = configuration.id
         self.onChange = onChange
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: configuration.kind == "taskbar" || configuration.kind == "separator" ? 560 : (configuration.kind == "clock" ? 520 : 430)),
+        settings = makePluginSettings(configuration)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: settings.windowHeight),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "\(configuration.name) Settings"
         window.isReleasedWhenClosed = false
         super.init(window: window)
+        settings.onChange = { [weak self] in self?.save() }
         nameField.stringValue = configuration.name
         nameField.placeholderString = "Plugin name"
         nameField.target = self
@@ -35,157 +25,26 @@ final class PluginSettingsWindowController: NSWindowController {
         nameField.widthAnchor.constraint(equalToConstant: 260).isActive = true
         nameField.setAccessibilityLabel("Plugin name")
         let identity = SettingsUI.card("General", views: [SettingsUI.row("Name", control: nameField)])
-        var options: [NSView] = []
-        var sectionTitle = "How It Works"
-        if configuration.kind == "taskbar" {
-            sectionTitle = "Application Buttons"
-            taskbarStyle.addItems(withTitles: ["Icons Only", "Icons and Titles"])
-            taskbarStyle.selectItem(at: configuration.taskbarShowsTitles ? 1 : 0)
-            taskbarStyle.target = self
-            taskbarStyle.action = #selector(save)
-            taskbarStyle.widthAnchor.constraint(equalToConstant: 200).isActive = true
-            taskbarWidth.doubleValue = configuration.taskbarButtonMaximumWidth
-            taskbarWidth.target = self
-            taskbarWidth.action = #selector(save)
-            taskbarWidth.widthAnchor.constraint(equalToConstant: 80).isActive = true
-            taskbarWidth.setAccessibilityLabel("Maximum app button width")
-            let size = NSStackView(views: [taskbarWidth, SettingsUI.help("pt")])
-            size.spacing = 6
-            hideFinder.state = configuration.taskbarHideFinder == true ? .on : .off
-            hideFinder.target = self
-            hideFinder.action = #selector(save)
-            hideLauncherApps.state = configuration.taskbarHideLauncherApps == true ? .on : .off
-            hideLauncherApps.target = self
-            hideLauncherApps.action = #selector(save)
-            options = [SettingsUI.row("Style", control: taskbarStyle),
-                       SettingsUI.row("Maximum width", control: size),
-                       SettingsUI.help("Choose a width from 80 to 400 pt. Used when titles are shown."),
-                       hideFinder,
-                       hideLauncherApps,
-                       SettingsUI.help("Hide apps with shortcuts in any enabled Launcher on this panel."),
-                       SettingsUI.help("Finder appears first unless hidden. Other apps keep their window opening order."),
-                       SettingsUI.help("Click the active app to minimize its window. Click again to restore. Minimizing and Dock notification badges require Accessibility access.")]
-        } else if configuration.kind == "separator" {
-            sectionTitle = "Layout"
-            style.addItems(withTitles: ["Line", "Space"])
-            style.selectItem(at: configuration.separatorStyle == "space" ? 1 : 0)
-            style.target = self
-            style.action = #selector(save)
-            style.widthAnchor.constraint(equalToConstant: 160).isActive = true
-            width.doubleValue = configuration.spaceWidth
-            width.target = self
-            width.action = #selector(save)
-            width.widthAnchor.constraint(equalToConstant: 80).isActive = true
-            width.setAccessibilityLabel("Fixed space width")
-            let size = NSStackView(views: [width, SettingsUI.help("pt")])
-            size.spacing = 6
-            expand.state = configuration.expand ? .on : .off
-            expand.target = self
-            expand.action = #selector(save)
-            options = [SettingsUI.row("Display as", control: style),
-                       SettingsUI.row("Fixed width", control: size), expand,
-                       SettingsUI.help("Line fills the panel height. Space adds 8–400 pt of blank space, or expands to fill the remaining width.")]
-        } else if configuration.kind == "clock" {
-            sectionTitle = "Clock Display"
-            clockStyle.addItems(withTitles: ClockStyle.allCases.map(\.title))
-            clockStyle.selectItem(at: ClockStyle.allCases.firstIndex(of: configuration.clockDisplayStyle) ?? 0)
-            clockStyle.target = self
-            clockStyle.action = #selector(save)
-            clockStyle.widthAnchor.constraint(equalToConstant: 160).isActive = true
-            clockStyle.setAccessibilityLabel("Clock display style")
-            use24HourTime.state = configuration.use24HourTime == true ? .on : .off
-            use24HourTime.target = self
-            use24HourTime.action = #selector(save)
-            seconds.state = configuration.showSeconds ? .on : .off
-            seconds.target = self
-            seconds.action = #selector(save)
-            options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
-                       SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
-        } else if configuration.kind == "imenu" {
-            sectionTitle = "Applications Menu"
-            imenuViewMode.addItems(withTitles: ["List View", "Icon View"])
-            imenuViewMode.selectItem(at: configuration.imenuShowsIcons ? 1 : 0)
-            imenuViewMode.target = self
-            imenuViewMode.action = #selector(save)
-            imenuViewMode.widthAnchor.constraint(equalToConstant: 160).isActive = true
-            imenuViewMode.setAccessibilityLabel("Applications display mode")
-            options = [SettingsUI.row("Display as", control: imenuViewMode),
-                       SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
-                       SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
-        } else if configuration.kind == "launcher" {
-            showRunningIndicator.state = configuration.launcherShowRunningIndicator == true ? .on : .off
-            showRunningIndicator.target = self
-            showRunningIndicator.action = #selector(save)
-            options = [showRunningIndicator,
-                       SettingsUI.help("Display a small dot below the icon while the app is running."),
-                       SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
-                       SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts."),
-                       SettingsUI.help("App badges mirror the system Dock and require Accessibility access. Apps without an accessible Dock badge show no badge.")]
-        } else {
-            options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash."),
-                       SettingsUI.help("Empty Trash asks for confirmation before permanently deleting items. Finder automation permission is required.")]
-        }
-        updateControls()
+        settings.updateControls()
         let apply = NSButton(title: "Apply Changes", target: self, action: #selector(save))
         apply.bezelStyle = .rounded
         let footer = SettingsUI.row("", control: apply)
         let kind = PluginPreferences.available.first { $0.0 == configuration.kind }?.1 ?? "Plugin"
         SettingsUI.install(in: window, views: [
             SettingsUI.header(configuration.name, subtitle: "\(kind) plugin settings", symbol: SettingsUI.symbol(for: configuration.kind), titleField: heading),
-            identity, SettingsUI.card(sectionTitle, views: options), footer])
+            identity, SettingsUI.card(settings.sectionTitle, views: settings.options), footer])
         window.center()
     }
 
     required init?(coder: NSCoder) { nil }
 
-    private func updateControls() {
-        taskbarWidth.isEnabled = taskbarStyle.indexOfSelectedItem == 1
-        expand.isEnabled = style.indexOfSelectedItem == 1
-        width.isEnabled = expand.isEnabled && expand.state != .on
-        let selected = ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem)
-            ? ClockStyle.allCases[clockStyle.indexOfSelectedItem] : .digital
-        use24HourTime.isEnabled = selected != .analog
-        switch selected {
-        case .digital: clockHint.stringValue = "Display the time as text in 12-hour or 24-hour format."
-        case .analog: clockHint.stringValue = "A classic 12-hour dial. Show Seconds adds a second hand."
-        case .binary: clockHint.stringValue = "Each column encodes one decimal digit. Read lit dots from top to bottom as 8, 4, 2, 1. Groups are hours, minutes, and optional seconds."
-        }
-    }
-
     @objc private func save() {
         PluginPreferences.update(pluginID) { config in
             let name = nameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !name.isEmpty { config.name = name }
-            if config.kind == "separator" {
-                config.separatorStyle = style.indexOfSelectedItem == 1 ? "space" : "line"
-                let value = width.doubleValue
-                config.spaceWidth = value.isFinite ? min(400, max(8, value)) : 24
-                width.doubleValue = config.spaceWidth
-                config.expand = expand.state == .on
-            }
-            if config.kind == "taskbar" {
-                config.taskbarHideLauncherApps = hideLauncherApps.state == .on
-                config.taskbarHideFinder = hideFinder.state == .on
-                config.taskbarStyle = taskbarStyle.indexOfSelectedItem == 1 ? "iconAndTitle" : "icon"
-                config.taskbarMaximumWidth = taskbarWidth.doubleValue
-                config.taskbarMaximumWidth = config.taskbarButtonMaximumWidth
-                taskbarWidth.doubleValue = config.taskbarButtonMaximumWidth
-            }
-            if config.kind == "clock" {
-                if ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem) {
-                    config.clockStyle = ClockStyle.allCases[clockStyle.indexOfSelectedItem].rawValue
-                }
-                config.showSeconds = seconds.state == .on
-                config.use24HourTime = use24HourTime.state == .on
-            }
-            if config.kind == "launcher" {
-                config.launcherShowRunningIndicator = showRunningIndicator.state == .on
-            }
-            if config.kind == "imenu" {
-                config.imenuViewMode = imenuViewMode.indexOfSelectedItem == 1 ? "icons" : "list"
-            }
+            settings.save(to: &config)
         }
-        updateControls()
+        settings.updateControls()
         heading.stringValue = PluginPreferences.configuration(pluginID)?.name ?? "Plugin"
         window?.title = "\(PluginPreferences.configuration(pluginID)?.name ?? "Plugin") Settings"
         onChange()

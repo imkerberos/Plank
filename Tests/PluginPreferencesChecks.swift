@@ -273,7 +273,7 @@ struct PluginPreferencesChecks {
     static func testPanelHeightSettings() {
         withIsolatedPreferences {
             precondition(PanelPreferences.height == 64)
-            for (preset, height) in [(PanelHeightPreset.small, 48.0), (.medium, 64.0), (.large, 80.0)] {
+            for (preset, height) in [(PanelHeightPreset.tiny, 32.0), (.small, 48.0), (.medium, 64.0), (.large, 80.0)] {
                 PanelPreferences.setHeight(preset: preset, customHeight: 55)
                 precondition(PanelPreferences.height == height)
                 precondition(PanelPreferences.customHeight == 55)

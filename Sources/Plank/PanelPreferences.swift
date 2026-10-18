@@ -1,13 +1,14 @@
 import Foundation
 
 enum PanelHeightPreset: String, CaseIterable {
-    case large, medium, small, custom
+    case large, medium, small, tiny, custom
 
     var title: String {
         switch self {
         case .large: "Large (80 pt)"
         case .medium: "Medium (64 pt)"
         case .small: "Small (48 pt)"
+        case .tiny: "Tiny (32 pt)"
         case .custom: "Custom"
         }
     }
@@ -39,6 +40,7 @@ enum PanelPreferences {
         case .large: 80
         case .medium: 64
         case .small: 48
+        case .tiny: 32
         case .custom: CGFloat(customHeight)
         }
     }

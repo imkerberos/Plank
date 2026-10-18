@@ -469,3 +469,32 @@ private final class ApplicationsTableView: NSTableView {
         }
     }
 }
+
+@MainActor
+extension IMenuPlugin {
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent {
+        IMenuSettings(configuration: configuration)
+    }
+}
+
+@MainActor
+private final class IMenuSettings: PluginSettingsContent {
+    private let imenuViewMode = NSPopUpButton()
+
+    init(configuration: PluginConfiguration) {
+        super.init(sectionTitle: "Applications Menu", windowHeight: 430)
+        imenuViewMode.addItems(withTitles: ["List View", "Icon View"])
+        imenuViewMode.selectItem(at: configuration.imenuShowsIcons ? 1 : 0)
+        imenuViewMode.target = self
+        imenuViewMode.action = #selector(requestSave)
+        imenuViewMode.widthAnchor.constraint(equalToConstant: 160).isActive = true
+        imenuViewMode.setAccessibilityLabel("Applications display mode")
+        options = [SettingsUI.row("Display as", control: imenuViewMode),
+                   SettingsUI.help("Browse and search installed apps. Click an app to launch it, or use the arrow keys and Return. Press Esc or click outside to close."),
+                   SettingsUI.help("Lock, Sleep, Restart, and Shut Down are available at the bottom of the menu.")]
+    }
+
+    override func save(to config: inout PluginConfiguration) {
+        config.imenuViewMode = imenuViewMode.indexOfSelectedItem == 1 ? "icons" : "list"
+    }
+}

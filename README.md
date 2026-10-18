@@ -78,7 +78,7 @@ Right-click an empty area of the locked panel and turn off **Lock Panel** to res
 
 ## Panel Height
 
-Open **Settings…** from the panel menu and choose a height: **Large (80 pt)**, **Medium (64 pt)**, **Small (48 pt)**, or **Custom (32–128 pt)**. Medium is the default. Changes apply immediately and are saved automatically. Press Return to apply a custom value; switching presets preserves the last custom height.
+Open **Settings…** from the panel menu and choose a height: **Large (80 pt)**, **Medium (64 pt)**, **Small (48 pt)**, **Tiny (32 pt)**, or **Custom (32–128 pt)**. Medium is the default. Changes apply immediately and are saved automatically. Press Return to apply a custom value; switching presets preserves the last custom height.
 
 Plugin containers and Taskbar and Launcher buttons fill the panel height, with no panel padding or inter-plugin spacing. Icons retain their own visual inset. Trash, iMenu, and handles also scale with panel height; separator lines span the full height. Clock text remains at a readable font size.
 
@@ -162,7 +162,7 @@ Choose **Move** in a plugin menu to highlight the plugin, then drag horizontally
 
 ## Project Structure and Checks
 
-`Sources/Plank/PanelPlugin.swift` defines the plugin protocol and built-in implementations. `PluginPreferences.swift` stores instances, ordering, and per-instance settings. To add a plugin, implement the protocol and register it in the available-types list and the `makePlugin` factory. Plugins are compiled into the app; external dynamic plugins and dropping files onto Trash are not supported.
+`Sources/Plank/PanelPlugin.swift` defines the plugin protocol. Each built-in plugin lives in its own file and supplies its settings controls, validation, and save logic through `PluginSettingsContent`. `PluginSettingsWindowController` provides the shared window, name field, and layout. `PluginPreferences.swift` stores instances, ordering, and per-instance settings. To add a plugin, implement the protocol (including `makeSettings`) and register it in the available-types list and `PluginFactory.swift`. Plugins are compiled into the app; external dynamic plugins and dropping files onto Trash are not supported.
 
 Older plugin ordering and visibility settings migrate automatically. Checks cover Launcher validation, deduplication, sorting, instance isolation, removal cleanup, Taskbar ordering, panel dimensions, application discovery, Dock recovery, and reserved-window geometry. They use an isolated preferences domain and do not modify your panel configuration:
 

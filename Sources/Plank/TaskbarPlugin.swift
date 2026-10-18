@@ -47,3 +47,61 @@ final class TaskbarPlugin: PanelPlugin {
         }
     }
 }
+
+@MainActor
+extension TaskbarPlugin {
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent {
+        TaskbarSettings(configuration: configuration)
+    }
+}
+
+@MainActor
+private final class TaskbarSettings: PluginSettingsContent {
+    private let taskbarStyle = NSPopUpButton()
+    private let taskbarWidth = NSTextField()
+    private let hideFinder = NSButton(checkboxWithTitle: "Hide Finder", target: nil, action: nil)
+    private let hideLauncherApps = NSButton(checkboxWithTitle: "Hide apps in Launcher", target: nil, action: nil)
+
+    init(configuration: PluginConfiguration) {
+        super.init(sectionTitle: "Application Buttons", windowHeight: 560)
+        taskbarStyle.addItems(withTitles: ["Icons Only", "Icons and Titles"])
+        taskbarStyle.selectItem(at: configuration.taskbarShowsTitles ? 1 : 0)
+        taskbarStyle.target = self
+        taskbarStyle.action = #selector(requestSave)
+        taskbarStyle.widthAnchor.constraint(equalToConstant: 200).isActive = true
+        taskbarWidth.doubleValue = configuration.taskbarButtonMaximumWidth
+        taskbarWidth.target = self
+        taskbarWidth.action = #selector(requestSave)
+        taskbarWidth.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        taskbarWidth.setAccessibilityLabel("Maximum app button width")
+        let size = NSStackView(views: [taskbarWidth, SettingsUI.help("pt")])
+        size.spacing = 6
+        hideFinder.state = configuration.taskbarHideFinder == true ? .on : .off
+        hideFinder.target = self
+        hideFinder.action = #selector(requestSave)
+        hideLauncherApps.state = configuration.taskbarHideLauncherApps == true ? .on : .off
+        hideLauncherApps.target = self
+        hideLauncherApps.action = #selector(requestSave)
+        options = [SettingsUI.row("Style", control: taskbarStyle),
+                   SettingsUI.row("Maximum width", control: size),
+                   SettingsUI.help("Choose a width from 80 to 400 pt. Used when titles are shown."),
+                   hideFinder,
+                   hideLauncherApps,
+                   SettingsUI.help("Hide apps with shortcuts in any enabled Launcher on this panel."),
+                   SettingsUI.help("Finder appears first unless hidden. Other apps keep their window opening order."),
+                   SettingsUI.help("Click the active app to minimize its window. Click again to restore. Minimizing and Dock notification badges require Accessibility access.")]
+    }
+
+    override func updateControls() {
+        taskbarWidth.isEnabled = taskbarStyle.indexOfSelectedItem == 1
+    }
+
+    override func save(to config: inout PluginConfiguration) {
+        config.taskbarHideLauncherApps = hideLauncherApps.state == .on
+        config.taskbarHideFinder = hideFinder.state == .on
+        config.taskbarStyle = taskbarStyle.indexOfSelectedItem == 1 ? "iconAndTitle" : "icon"
+        config.taskbarMaximumWidth = taskbarWidth.doubleValue
+        config.taskbarMaximumWidth = config.taskbarButtonMaximumWidth
+        taskbarWidth.doubleValue = config.taskbarButtonMaximumWidth
+    }
+}

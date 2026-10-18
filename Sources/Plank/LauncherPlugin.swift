@@ -325,3 +325,31 @@ private final class LauncherDropView: NSStackView {
     }
     override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) { layer?.backgroundColor = nil }
 }
+
+@MainActor
+extension LauncherPlugin {
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent {
+        LauncherSettings(configuration: configuration)
+    }
+}
+
+@MainActor
+private final class LauncherSettings: PluginSettingsContent {
+    private let showRunningIndicator = NSButton(checkboxWithTitle: "Show running app indicator", target: nil, action: nil)
+
+    init(configuration: PluginConfiguration) {
+        super.init(sectionTitle: "How It Works", windowHeight: 430)
+        showRunningIndicator.state = configuration.launcherShowRunningIndicator == true ? .on : .off
+        showRunningIndicator.target = self
+        showRunningIndicator.action = #selector(requestSave)
+        options = [showRunningIndicator,
+                   SettingsUI.help("Display a small dot below the icon while the app is running."),
+                   SettingsUI.help("Drag apps from Finder or Taskbar into Launcher to add shortcuts."),
+                   SettingsUI.help("Click to launch or drag to reorder. Drag outside the panel or right-click to remove a shortcut. The application itself is kept. Each Launcher has its own shortcuts."),
+                   SettingsUI.help("App badges mirror the system Dock and require Accessibility access. Apps without an accessible Dock badge show no badge.")]
+    }
+
+    override func save(to config: inout PluginConfiguration) {
+        config.launcherShowRunningIndicator = showRunningIndicator.state == .on
+    }
+}

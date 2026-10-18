@@ -101,3 +101,19 @@ private final class TrashButton: NSButton {
     var onContextMenu: ((NSEvent) -> Void)?
     override func rightMouseDown(with event: NSEvent) { onContextMenu?(event) }
 }
+
+@MainActor
+extension TrashPlugin {
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent {
+        TrashSettings(configuration: configuration)
+    }
+}
+
+@MainActor
+private final class TrashSettings: PluginSettingsContent {
+    init(configuration: PluginConfiguration) {
+        super.init(sectionTitle: "How It Works", windowHeight: 430)
+        options = [SettingsUI.help("Click to open Trash in Finder. Right-click for Open Trash and Empty Trash."),
+                   SettingsUI.help("Empty Trash asks for confirmation before permanently deleting items. Finder automation permission is required.")]
+    }
+}

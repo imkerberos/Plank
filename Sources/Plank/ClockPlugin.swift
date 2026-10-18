@@ -178,3 +178,55 @@ private final class ClockDisplayView: NSView {
         else { super.rightMouseDown(with: event) }
     }
 }
+
+@MainActor
+extension ClockPlugin {
+    static func makeSettings(configuration: PluginConfiguration) -> PluginSettingsContent {
+        ClockSettings(configuration: configuration)
+    }
+}
+
+@MainActor
+private final class ClockSettings: PluginSettingsContent {
+    private let seconds = NSButton(checkboxWithTitle: "Show Seconds", target: nil, action: nil)
+    private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
+    private let clockStyle = NSPopUpButton()
+    private let clockHint = SettingsUI.help("")
+
+    init(configuration: PluginConfiguration) {
+        super.init(sectionTitle: "Clock Display", windowHeight: 520)
+        clockStyle.addItems(withTitles: ClockStyle.allCases.map(\.title))
+        clockStyle.selectItem(at: ClockStyle.allCases.firstIndex(of: configuration.clockDisplayStyle) ?? 0)
+        clockStyle.target = self
+        clockStyle.action = #selector(requestSave)
+        clockStyle.widthAnchor.constraint(equalToConstant: 160).isActive = true
+        clockStyle.setAccessibilityLabel("Clock display style")
+        use24HourTime.state = configuration.use24HourTime == true ? .on : .off
+        use24HourTime.target = self
+        use24HourTime.action = #selector(requestSave)
+        seconds.state = configuration.showSeconds ? .on : .off
+        seconds.target = self
+        seconds.action = #selector(requestSave)
+        options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
+                   SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
+    }
+
+    override func updateControls() {
+        let selected = ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem)
+            ? ClockStyle.allCases[clockStyle.indexOfSelectedItem] : .digital
+        use24HourTime.isEnabled = selected != .analog
+        switch selected {
+        case .digital: clockHint.stringValue = "Display the time as text in 12-hour or 24-hour format."
+        case .analog: clockHint.stringValue = "A classic 12-hour dial. Show Seconds adds a second hand."
+        case .binary: clockHint.stringValue = "Each column encodes one decimal digit. Read lit dots from top to bottom as 8, 4, 2, 1. Groups are hours, minutes, and optional seconds."
+        }
+    }
+
+    override func save(to config: inout PluginConfiguration) {
+        if ClockStyle.allCases.indices.contains(clockStyle.indexOfSelectedItem) {
+            config.clockStyle = ClockStyle.allCases[clockStyle.indexOfSelectedItem].rawValue
+        }
+        config.showSeconds = seconds.state == .on
+        config.use24HourTime = use24HourTime.state == .on
+    }
+}

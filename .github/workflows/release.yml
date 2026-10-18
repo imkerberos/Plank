@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vX.Y.Z tag to package; must match VERSION
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package tagged universal app
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Validate tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Tag must be vX.Y.Z' >&2; exit 1; }
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - name: Install just
+        uses: extractions/setup-just@v3
+        with:
+          just-version: '1.51.0'
+      - name: Run checks and package
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version=$(just --quiet version)
+          [[ "$RELEASE_TAG" == "v$version" ]] || { echo "Release tag must match VERSION (v$version)" >&2; exit 1; }
+          just ci
+          just package universal
+          for arch in arm64 x86_64; do
+            lipo dist/Plank.app/Contents/MacOS/Plank -verify_arch "$arch"
+          done
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            dist/*.app.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  draft:
+    name: Create draft release
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Create draft for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" release-assets/* \
+            --verify-tag --draft --title "Plank $RELEASE_TAG" \
+            --notes 'Universal macOS app for Apple Silicon and Intel, requiring macOS 14 or later. This build is ad hoc signed and is not notarized. SHA-256 checksums are included.'

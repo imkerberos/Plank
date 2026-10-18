@@ -7,6 +7,7 @@ This document covers source builds and implementation details. For installation,
 - macOS 14 or later.
 - Swift 6 or later, supplied by Xcode or Command Line Tools.
 - Swift Package Manager. The package has no third-party package dependencies.
+- [just](https://github.com/casey/just) 1.51 or later (for example, `brew install just`).
 
 Source code is managed with Git. `.build/`, `.swiftpm/`, `dist/`, and user-specific Xcode files are ignored.
 
@@ -15,8 +16,8 @@ Source code is managed with Git. `.build/`, `.swiftpm/`, `dist/`, and user-speci
 From the repository root:
 
 ```sh
-swift build
-swift run Plank
+just build
+just run
 ```
 
 You can also open `Package.swift` in Xcode. Use the panel menu's **Quit Plank** action to exit normally, particularly when testing Dock replacement. Abrupt termination can leave Dock recovery work for the next launch.
@@ -24,11 +25,11 @@ You can also open `Package.swift` in Xcode. Use the panel menu's **Quit Plank** 
 To build an app bundle:
 
 ```sh
-./scripts/build-app.sh
+just build-app
 open dist/Plank.app
 ```
 
-The script performs a release build, generates the icon, copies the executable and resource bundle, writes `Info.plist`, and applies an ad hoc signature. Its bundle identifier is `dev.plank.panel`. Local builds are not Developer ID signed or notarized; configure signing and notarization before distribution.
+The recipe performs a release build, generates the icon, copies the executable and resource bundle, writes `Info.plist`, and applies an ad hoc signature. Its bundle identifier is `dev.plank.panel`. Local builds are not Developer ID signed or notarized; configure signing and notarization before distribution.
 
 Install the bundle in a permanent location such as `/Applications` before testing login registration. `SMAppService.mainApp` requires the app bundle rather than the standalone command-line executable. Rebuilding an ad hoc signed app may require reviewing its macOS privacy permissions again.
 
@@ -163,13 +164,12 @@ Optional fields keep older plugin configurations decodable. Legacy ordering/visi
 From the repository root:
 
 ```sh
-./scripts/check-preferences.sh
-./scripts/build-app.sh
-codesign --verify --deep --strict dist/Plank.app
-git diff --check
+just ci
+just build-app
+just verify-app
 ```
 
-The preferences script compiles the relevant production sources with `Tests/PluginPreferencesChecks.swift`. Checks use isolated preferences domains and temporary fixtures. They cover configuration migration, default layout, independent instances, removal, Launcher validation and ordering, Taskbar ordering/settings, badge normalization, clock encoding, panel dimensions, application discovery, and Dock rollback/recovery and window geometry. The Dock checks use a simulated backend and do not modify the machine's Dock.
+`just test` compiles the relevant production sources with `Tests/PluginPreferencesChecks.swift`. Checks use isolated preferences domains and temporary fixtures. They cover configuration migration, default layout, independent instances, removal, Launcher validation and ordering, Taskbar ordering/settings, badge normalization, clock encoding, panel dimensions, application discovery, and Dock rollback/recovery and window geometry. The Dock checks use a simulated backend and do not modify the machine's Dock.
 
 Builds and model checks do not establish UI behavior. For changes affecting interaction, also verify the relevant paths in the app: panel sizes and locking, menu edges and dismissal, drag previews/cancellation, keyboard navigation, permissions, and cleanup. Show Desktop needs live toggle/restore verification; Trash switching needs authorized Finder queries. Test multi-display and full-screen behavior separately rather than inferring it from primary-display checks.
 
@@ -177,8 +177,31 @@ Use isolated test-app identities and preferences when practical. Do not replace 
 
 ## Icons and Resources
 
-The original app icon is `Assets/AppIcon.png`. `scripts/build-icon.sh` uses `sips` and `iconutil` to generate the multi-resolution `Assets/AppIcon.icns`, which is copied into the bundle and referenced by `CFBundleIconFile`. Design notes and the generation prompt are in [Assets/README.md](../Assets/README.md).
+The original app icon is `Assets/AppIcon.png`. `just icon` uses `sips` and `iconutil` to generate the multi-resolution `Assets/AppIcon.icns`, which is copied into the bundle and referenced by `CFBundleIconFile`. Design notes and the generation prompt are in [Assets/README.md](../Assets/README.md).
 
-Google Material Design system-action icons and their Apache 2.0 license are bundled in `Sources/Plank/Resources/MaterialIcons`; see [NOTICE.txt](../Sources/Plank/Resources/MaterialIcons/NOTICE.txt). Swift Package Manager copies these resources into `Plank_Plank.bundle`, which the app build script includes.
+Google Material Design system-action icons and their Apache 2.0 license are bundled in `Sources/Plank/Resources/MaterialIcons`; see [NOTICE.txt](../Sources/Plank/Resources/MaterialIcons/NOTICE.txt). Swift Package Manager copies these resources into `Plank_Plank.bundle`, which `just build-app` includes.
 
 If an installed app's icon is stale, check the installed bundle's plist, icon decoding, and signature before changing packaging. App-specific Launch Services registration and Alfred's `reload` command can refresh stale entries without deleting system-wide caches.
+
+## Just Tasks and GitHub Actions
+
+`Justfile` is the single entry point for build, checks, icon generation, and packaging; no wrapper scripts are required. Run `just` to list tasks. Bundle metadata lives in `packaging/Info.plist`; the application version is maintained only in the root `VERSION` file.
+
+| Task | Purpose |
+| --- | --- |
+| `just build` / `just run` | Debug build / run. |
+| `just test` | Isolated preferences and geometry checks. |
+| `just ci` | Debug build, patch whitespace checks, and tests. |
+| `just icon` | Regenerate `Assets/AppIcon.icns`. |
+| `just build-release [arch]` | Optimized executable. |
+| `just build-app [arch]` | Clean, ad hoc signed `dist/Plank.app`. |
+| `just verify-app` | Check bundle resources, metadata, and signature. |
+| `just package [arch]` | Build app, ZIP archive, and SHA-256 checksum in `dist/`. |
+
+Architectures are `native` (default), `arm64`, `x86_64`, and `universal`. Universal builds contain both Apple Silicon and Intel slices. Change only `VERSION` to bump the application version (format: `X.Y.Z`). `just version` prints and validates it. Packaging reads it automatically and writes it into both bundle version fields and archive filenames; version overrides are not accepted. For example, with `VERSION` set to `0.1.0`, `just package universal` produces `dist/Plank-0.1.0-macos-universal.app.zip` and its `.sha256` file. Archives preserve the app bundle and file permissions.
+
+The **CI** workflow runs on pushes to master/main/develop, pull requests, and manual dispatch. A macOS 15 runner executes `just ci`, packages a universal app, verifies both executable architectures, and uploads the ZIP and checksum as downloadable workflow artifacts. It does not launch Plank or change the runner’s Dock.
+
+The **Release** workflow is manually dispatched with an existing `vX.Y.Z` tag. It checks out that exact tag, validates that the tag equals `v` followed by the tagged `VERSION` value, runs checks, and builds the versioned universal app. A mismatch fails before building. A separate job with repository write permission creates a **draft** GitHub release for review. It does not create tags or publish the draft. The tagged source must include these Just recipes; reusing a tag with an existing release fails rather than overwriting it.
+
+Release artifacts remain ad hoc signed and unnotarized. Developer ID signing and notarization are separate distribution work. Local build/check results do not establish that the hosted workflow has passed; inspect its run after pushing the workflow files.

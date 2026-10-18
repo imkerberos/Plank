@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS checks and universal app
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install just
+        uses: extractions/setup-just@v3
+        with:
+          just-version: '1.51.0'
+      - name: Show toolchain
+        run: |
+          swift --version
+          just --version
+      - name: Run checks
+        run: just ci
+      - name: Package universal app
+        run: just package universal
+      - name: Check architectures
+        run: |
+          for arch in arm64 x86_64; do
+            lipo dist/Plank.app/Contents/MacOS/Plank -verify_arch "$arch"
+          done
+      - name: Upload app and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: Plank-macos-universal
+          path: |
+            dist/*.app.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -1,6 +1,6 @@
 # Application icon
 
-`AppIcon.png` is the original artwork. `AppIcon.icns` contains the macOS icon sizes (16–1024 pixels, including Retina variants). Rebuild it with `sh scripts/build-icon.sh`; `scripts/build-app.sh` also regenerates and bundles it automatically.
+`AppIcon.png` is the original artwork. `AppIcon.icns` contains the macOS icon sizes (16–1024 pixels, including Retina variants). Rebuild it with `just icon`; `just build-app` also regenerates and bundles it automatically.
 
 Created with the built-in image generation tool using this prompt:
 

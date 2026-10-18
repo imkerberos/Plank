@@ -144,6 +144,39 @@ private final class MenuActionButton: NSButton {
 
 @MainActor
 final class PanelBackgroundView: NSVisualEffectView {
+    private var pointerTracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let pointerTracking { removeTrackingArea(pointerTracking) }
+        // The panel never becomes key. Cursor rectangles alone therefore do
+        // not reliably replace the cursor left behind by another application.
+        // activeAlways does not deliver cursorUpdate, so use entry/move events.
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        pointerTracking = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { updatePointer(with: event) }
+    override func mouseMoved(with event: NSEvent) { updatePointer(with: event) }
+
+    private func updatePointer(with event: NSEvent) {
+        guard let window, event.window === window else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else { return }
+        var target = hitTest(point)
+        while let view = target {
+            if let container = view as? PluginContainer, container.isMoving {
+                NSCursor.openHand.set()
+                return
+            }
+            target = view.superview
+        }
+        NSCursor.arrow.set()
+    }
+
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
     }

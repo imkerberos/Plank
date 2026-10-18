@@ -10,7 +10,7 @@ final class PluginContainer: NSStackView {
             layer?.borderWidth = isMoving ? 2 : 0
             layer?.borderColor = NSColor.controlAccentColor.cgColor
             toolTip = isMoving ? "Drag to a new position and release to finish; right-click to cancel" : nil
-            resetCursorRects()
+            window?.invalidateCursorRects(for: self)
         }
     }
     var onDrop: ((NSPoint) -> Void)?

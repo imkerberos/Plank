@@ -167,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.acceptsMouseMovedEvents = true
         panel.isMovableByWindowBackground = false
 
         let background = PanelBackgroundView()

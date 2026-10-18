@@ -1,6 +1,18 @@
-# Plank
+<p align="center">
+  <img src="Assets/AppIcon.png" alt="Plank icon" width="160">
+</p>
+
+<h1 align="center">Plank</h1>
 
 An XFCE-inspired panel for macOS, with app shortcuts, running apps, an application menu, clocks, and Trash. Use it alongside the system Dock or enable Dock replacement in settings.
+
+<p align="center">
+  <img src="Assets/plank-light.png" alt="Plank in light mode">
+</p>
+
+<p align="center">
+  <img src="Assets/plank-dark.png" alt="Plank in dark mode">
+</p>
 
 Requires **macOS 14 or later**. Plank sits at the bottom of your primary display and supports multiple desktop Spaces.
 

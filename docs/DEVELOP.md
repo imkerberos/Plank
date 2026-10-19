@@ -110,7 +110,7 @@ An initial badge snapshot is requested before Dock replacement restarts the Dock
 
 `IMenuPlugin.swift` owns an arrowless resizable panel at popup-menu level. It anchors to the iMenu button, stays flush against the panel, and clamps to usable screen bounds without extra edge margins. It saves size independently per instance. Outside-click monitors and Esc dismiss it.
 
-The menu provides list and icon-grid modes, filtering, keyboard navigation, and system-action buttons. `ApplicationCatalog.swift` scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. It skips hidden files, background applications, and nested helpers, deduplicates paths, and refreshes in the background on opening.
+The menu provides list and icon-grid modes, filtering, keyboard navigation, and system-action buttons. Opening or filtering leaves applications unselected; Down selects the first result for keyboard navigation. Rows and icons show hover feedback, with selection/pressed feedback on interaction. System actions use labeled bordered buttons below a separator and a System heading. `ApplicationCatalog.swift` scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. It skips hidden files, background applications, and nested helpers, deduplicates paths, and refreshes in the background on opening.
 
 `SystemSessionAction.swift` uses AppleScript targeting System Events for Lock, Sleep, Restart, and Shut Down. Restart and Shut Down require confirmation with Cancel as the default; cancellation is not reported as an error. These actions use Automation permission, with Accessibility also needed for locking.
 

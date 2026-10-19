@@ -225,16 +225,26 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
             let button = NSButton(title: action.title, target: self, action: #selector(systemActionClicked(_:)))
             button.tag = index
             button.image = action.icon
-            button.imagePosition = .imageAbove
+            button.imagePosition = .imageLeading
             button.imageScaling = .scaleProportionallyDown
-            button.isBordered = false
+            button.isBordered = true
+            button.bezelStyle = .rounded
             button.font = .systemFont(ofSize: 11)
             button.toolTip = action == .lock ? "Lock Screen" : action.title
             button.setAccessibilityLabel(button.toolTip!)
-            button.heightAnchor.constraint(equalToConstant: 48).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
             actions.addArrangedSubview(button)
         }
-        let content = NSStackView(views: [header, search, scroll, actions])
+        let separator = NSBox()
+        separator.boxType = .separator
+        let systemTitle = NSTextField(labelWithString: "System")
+        systemTitle.font = .systemFont(ofSize: 11, weight: .semibold)
+        systemTitle.textColor = .secondaryLabelColor
+        let footer = NSStackView(views: [separator, systemTitle, actions])
+        footer.orientation = .vertical
+        footer.alignment = .leading
+        footer.spacing = 8
+        let content = NSStackView(views: [header, search, scroll, footer])
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = 10
@@ -248,7 +258,9 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
             search.widthAnchor.constraint(equalTo: content.widthAnchor),
             scroll.widthAnchor.constraint(equalTo: content.widthAnchor),
             header.widthAnchor.constraint(equalTo: content.widthAnchor),
-            actions.widthAnchor.constraint(equalTo: content.widthAnchor),
+            footer.widthAnchor.constraint(equalTo: content.widthAnchor),
+            separator.widthAnchor.constraint(equalTo: footer.widthAnchor),
+            actions.widthAnchor.constraint(equalTo: footer.widthAnchor),
             scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100)
         ])
     }
@@ -305,10 +317,8 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         filtered = CatalogApplication.matching(search.stringValue, in: applications)
         table.reloadData()
         if showsIcons { grid.setApplications(filtered) }
-        if !filtered.isEmpty {
-            table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-            table.scrollRowToVisible(0)
-        }
+        table.deselectAll(nil)
+        if !filtered.isEmpty { table.scrollRowToVisible(0) }
         status.stringValue = filtered.isEmpty ? "No matching applications" : "\(filtered.count) apps · Click to launch · Esc to close"
         status.toolTip = status.stringValue
     }
@@ -348,6 +358,10 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         return cell
     }
 
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        ApplicationsMenuRowView()
+    }
+
     @objc private func launchClicked() {
         guard filtered.indices.contains(table.clickedRow) else { return }
         onLaunch?(filtered[table.clickedRow])
@@ -368,7 +382,7 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
 private final class ApplicationsIconGrid: NSView {
     var onLaunch: ((Int) -> Void)?
     var onEscape: (() -> Void)?
-    private var buttons: [NSButton] = []
+    private var buttons: [ApplicationsMenuButton] = []
     private(set) var selectedIndex = -1
     private var columns = 1
     override var isFlipped: Bool { true }
@@ -377,7 +391,7 @@ private final class ApplicationsIconGrid: NSView {
     func setApplications(_ applications: [CatalogApplication]) {
         buttons.forEach { $0.removeFromSuperview() }
         buttons = applications.enumerated().map { index, application in
-            let button = NSButton(title: application.name, target: self, action: #selector(launch(_:)))
+            let button = ApplicationsMenuButton(title: application.name, target: self, action: #selector(launch(_:)))
             let icon = NSWorkspace.shared.icon(forFile: application.url.path)
             icon.size = NSSize(width: 44, height: 44)
             button.image = icon
@@ -394,7 +408,7 @@ private final class ApplicationsIconGrid: NSView {
             addSubview(button)
             return button
         }
-        selectedIndex = buttons.isEmpty ? -1 : 0
+        selectedIndex = -1
         updateSelection()
         needsLayout = true
         enclosingScrollView?.contentView.scroll(to: .zero)
@@ -438,8 +452,7 @@ private final class ApplicationsIconGrid: NSView {
     private func updateSelection() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             for (index, button) in buttons.enumerated() {
-                button.layer?.backgroundColor = index == selectedIndex
-                    ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+                button.keyboardSelected = index == selectedIndex
             }
         }
     }
@@ -455,11 +468,69 @@ private final class ApplicationsIconGrid: NSView {
         switch event.keyCode {
         case 123: select(selectedIndex - 1)
         case 124: select(selectedIndex + 1)
-        case 125: select(selectedIndex + columns)
+        case 125: select(selectedIndex < 0 ? 0 : selectedIndex + columns)
         case 126: select(selectedIndex - columns)
         case 36, 76: if selectedIndex >= 0 { onLaunch?(selectedIndex) }
         case 53: onEscape?()
         default: super.keyDown(with: event)
+        }
+    }
+}
+
+// Draw interaction backgrounds ourselves so borderless icon buttons have the
+// same hover and pressed feedback in both light and dark appearances.
+@MainActor
+private final class ApplicationsMenuButton: NSButton {
+    var keyboardSelected = false { didSet { needsDisplay = true } }
+    private var hovering = false
+    private var hoverTracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        hoverTracking = area
+        hovering = window.map { bounds.contains(convert($0.mouseLocationOutsideOfEventStream, from: nil)) } ?? false
+        needsDisplay = true
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovering = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovering = false; needsDisplay = true }
+    override func draw(_ dirtyRect: NSRect) {
+        if isHighlighted || keyboardSelected || hovering {
+            let color = isHighlighted ? NSColor.controlAccentColor.withAlphaComponent(0.32)
+                : keyboardSelected ? NSColor.controlAccentColor.withAlphaComponent(0.2)
+                : NSColor.labelColor.withAlphaComponent(0.08)
+            color.setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8).fill()
+        }
+        super.draw(dirtyRect)
+    }
+}
+
+@MainActor
+private final class ApplicationsMenuRowView: NSTableRowView {
+    private var hovering = false
+    private var hoverTracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        hoverTracking = area
+        hovering = window.map { bounds.contains(convert($0.mouseLocationOutsideOfEventStream, from: nil)) } ?? false
+        needsDisplay = true
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovering = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovering = false; needsDisplay = true }
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        if hovering && !isSelected {
+            NSColor.labelColor.withAlphaComponent(0.08).setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 6, yRadius: 6).fill()
         }
     }
 }

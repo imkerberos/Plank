@@ -28,13 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func makePanelMenu() -> NSMenu {
         let menu = NSMenu()
+        let about = menu.addItem(withTitle: "About Plank", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(.separator())
         let settings = menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         let pluginsItem = menu.addItem(withTitle: "Plugins…", action: #selector(showPlugins), keyEquivalent: "")
         pluginsItem.target = self
-        let about = menu.addItem(withTitle: "About Plank", action: #selector(showAbout), keyEquivalent: "")
-        about.target = self
-        let lock = menu.addItem(withTitle: "Lock Panel", action: #selector(toggleLock), keyEquivalent: "")
+        let lock = menu.addItem(withTitle: "Lock", action: #selector(toggleLock), keyEquivalent: "")
         lock.target = self
         lock.state = PanelPreferences.isLocked ? .on : .off
         menu.addItem(.separator())

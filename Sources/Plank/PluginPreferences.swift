@@ -20,6 +20,7 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     var launcherShowRunningIndicator: Bool?
     var imenuViewMode: String?
     var folderPath: String?
+    var disksHideWhenEmpty: Bool?
 
     var imenuShowsIcons: Bool { imenuViewMode == "icons" }
 
@@ -34,7 +35,7 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
 @MainActor
 enum PluginPreferences {
     static var defaults = UserDefaults.standard
-    static let available = [("taskbar", "Taskbar"), ("separator", "Separator"), ("clock", "Clock"), ("trash", "Trash"), ("launcher", "Launcher"), ("imenu", "iMenu"), ("showdesktop", "Show Desktop"), ("folder", "Folder")]
+    static let available = [("taskbar", "Taskbar"), ("separator", "Separator"), ("clock", "Clock"), ("trash", "Trash"), ("launcher", "Launcher"), ("imenu", "iMenu"), ("showdesktop", "Show Desktop"), ("folder", "Folder"), ("disks", "Mounted Disks")]
 
     static var configurations: [PluginConfiguration] {
         get {

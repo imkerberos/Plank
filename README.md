@@ -171,6 +171,12 @@ Badges require Accessibility access. Only badges supplied by the system Dock can
 
 Add **Folder** from the Plugins window. Double-click its row, choose **Choose Folder…**, and select a directory. Click the panel icon to open that directory in Finder. Each instance has its own location and defaults to your home folder. If a folder is moved, deleted, or on a disconnected drive, choose its new location in the plugin settings.
 
+### Mounted Disks
+
+Add **Mounted Disks** from **Plugins… → Add…**. Click its yellow macOS external-drive icon to list mounted external volumes and disk images, including DMG and ISO. Each entry shows only the volume name and its Finder icon, including custom icons configured in disk images. Click a volume to unmount it. If it is busy or macOS refuses the request, Plank displays an error; close apps using the volume and try again. Each action unmounts the selected volume without forcing it or ejecting other volumes on the same drive.
+
+The icon switches to the gray macOS disk icon and is disabled when no matching volumes are mounted. Enable **Hide when no disks are mounted** in the plugin settings to hide it instead. The plugin reappears automatically when a volume mounts. Internal system volumes and network shares are excluded.
+
 ### Separator
 
 Choose **Line** for a thin vertical divider spanning the panel height, or **Space** for a blank area of 8–400 pt. Enable **Expand to fill remaining panel space** to use the available space. Multiple expanding separators share that space equally.

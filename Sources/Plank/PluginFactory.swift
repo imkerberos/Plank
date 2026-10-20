@@ -20,6 +20,7 @@ private func pluginType(for kind: String) -> any PanelPlugin.Type {
     case "imenu": IMenuPlugin.self
     case "showdesktop": ShowDesktopPlugin.self
     case "folder": FolderPlugin.self
+    case "disks": DisksPlugin.self
     default: TrashPlugin.self
     }
 }

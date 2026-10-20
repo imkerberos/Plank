@@ -12,6 +12,7 @@ enum SettingsUI {
         case "imenu": "square.grid.2x2"
         case "showdesktop": "desktopcomputer"
         case "folder": "folder"
+        case "disks": "externaldrive"
         default: "slider.horizontal.3"
         }
     }

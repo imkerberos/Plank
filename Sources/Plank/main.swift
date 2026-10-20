@@ -303,8 +303,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let clock = plugin as? ClockPlugin {
                 clock.onWidthChanged = { [weak self] in self?.refresh() }
             }
+            if let disks = plugin as? DisksPlugin {
+                disks.onChange = { [weak self] in self?.refresh() }
+            }
             plugin.setPanelHeight(height)
             plugin.refresh()
+            if let disks = plugin as? DisksPlugin, disks.shouldHide { continue }
             plugin.view.removeFromSuperview()
             let title = PluginPreferences.configuration(plugin.id)?.name ?? plugin.id
             let menu = locked ? makePanelMenu() : makePluginMenu(plugin)

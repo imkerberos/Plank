@@ -126,6 +126,14 @@ Clock’s optional `clockOpensCalendar` setting defaults to off for older and ne
 
 `FolderPlugin.swift` contains the folder button and its settings. The optional `folderPath` field is saved per instance; an unset path defaults to the user’s home directory. Settings use a directory-only `NSOpenPanel`, and cancellation leaves the previous selection intact. The plugin shows the directory’s system icon and opens its contents explicitly through Finder, validating that the directory still exists before opening. It does not require Finder Automation permission for this Launch Services operation.
 
+### Mounted Disks
+
+`DisksPlugin.swift` discovers local, browsable mounted volumes using Foundation and Disk Arbitration descriptions. It includes external, removable/ejectable media and Disk Image devices, excluding the root volume, non-browsable system mounts, and network shares. The plugin observes workspace mount, unmount, and rename notifications, with a three-second reconciliation timer. Disabling/removing it unregisters observers and stops the timer.
+
+The panel uses the macOS IOStorageFamily External icon when volumes exist and the Internal (gray) icon when empty, with a root-volume icon fallback if system resources are unavailable. Clicking the icon presents volume names and Finder-resolved icons in `PanelMenu`; `NSWorkspace.icon(forFile:)` preserves custom disk-image volume icons. The shared presenter renders `NSMenuItem.image` at 18 pt. `DiskUnmountService` revalidates the mount path and BSD device before calling `DADiskUnmount` with default options for the selected volume. A retained callback context keeps the DA session alive until completion. Pending entries are disabled; failures display a modal error. It never requests force or whole-disk unmount. The optional per-instance `disksHideWhenEmpty` flag defaults to false. Hidden instances keep monitoring mounts; the panel rebuilds its geometry on changes so the icon and its handle leave no gap.
+
+The model checks cover media classification, old/default and independent settings, symbol availability, and stale requests. Live checks with disposable DMG and ISO volumes verified discovery, busy-volume refusal, successful unmount, workspace notification updates, empty-state disabling/hiding, and settings/menu rendering. Physical USB/Thunderbolt hardware was not exercised.
+
 ### Trash
 
 `TrashPlugin.swift` opens Trash explicitly in Finder and provides Open Trash / Empty Trash context actions. Emptying uses Finder AppleScript only after confirmation; cancellation is ignored and Automation denial produces a helpful error.

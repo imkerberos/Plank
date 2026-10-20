@@ -10,6 +10,7 @@ struct PluginPreferencesChecks {
         testDefaultPluginOrder()
         testShowDesktopPluginLifecycle()
         testFolderSettings()
+        testMountedDisks()
         testTaskbarWindowOrder()
         testClockStyles()
         testAppBadgeContent()
@@ -25,8 +26,33 @@ struct PluginPreferencesChecks {
         testPanelThemeSettings()
         testPanelFixedGeometry()
         testTaskbarSettingsCompatibility()
-        print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry, fixed panel geometry")
+        print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry, fixed panel geometry, mounted disk classification and settings")
     }
+    @MainActor
+    static func testMountedDisks() {
+        precondition(!MountedDiskReader.isExternal(internalDevice: true, removable: false, ejectable: false, deviceProtocol: "PCI-Express"))
+        precondition(!MountedDiskReader.isExternal(internalDevice: nil, removable: false, ejectable: false, deviceProtocol: ""))
+        precondition(MountedDiskReader.isExternal(internalDevice: false, removable: false, ejectable: false, deviceProtocol: "USB"))
+        precondition(MountedDiskReader.isExternal(internalDevice: true, removable: false, ejectable: false, deviceProtocol: "Disk Image"))
+        precondition(MountedDiskReader.isExternal(internalDevice: true, removable: true, ejectable: true, deviceProtocol: "ATAPI"))
+        precondition(MountedDiskIcons.external.isValid && !MountedDiskIcons.external.isTemplate)
+        precondition(MountedDiskIcons.idle.isValid && !MountedDiskIcons.idle.isTemplate)
+        withIsolatedPreferences {
+            let first = PluginPreferences.add(kind: "disks")
+            let second = PluginPreferences.add(kind: "disks")
+            precondition(PluginPreferences.configuration(first)?.disksHideWhenEmpty == nil)
+            PluginPreferences.update(first) { $0.disksHideWhenEmpty = true }
+            precondition(PluginPreferences.configuration(first)?.disksHideWhenEmpty == true)
+            precondition(PluginPreferences.configuration(second)?.disksHideWhenEmpty == nil)
+            var completed = false
+            DiskUnmountService.unmount(MountedDisk(url: URL(fileURLWithPath: "/Volumes/Plank-Missing-Test"), name: "Missing", device: "invalid")) { error in
+                precondition(error != nil)
+                completed = true
+            }
+            precondition(completed, "A stale disk must fail before an unmount request is sent")
+        }
+    }
+
     @MainActor
     static func testPanelFixedGeometry() {
         _ = NSApplication.shared

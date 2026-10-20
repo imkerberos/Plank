@@ -70,4 +70,5 @@ enum PanelPreferences {
 
 enum PanelMetrics {
     static func buttonSize(for height: CGFloat) -> CGFloat { height }
+    static func utilityIconSize(for height: CGFloat) -> CGFloat { buttonSize(for: height) * 0.8 }
 }

@@ -32,11 +32,20 @@ final class TrashPlugin: NSObject, PanelPlugin {
         buttonWidth = button.widthAnchor.constraint(equalToConstant: 44)
         buttonHeight = button.heightAnchor.constraint(equalToConstant: 44)
         NSLayoutConstraint.activate([buttonWidth, buttonHeight])
+        setPanelHeight(PanelPreferences.height)
     }
 
     func setPanelHeight(_ height: CGFloat) {
         buttonWidth.constant = PanelMetrics.buttonSize(for: height)
         buttonHeight.constant = buttonWidth.constant
+        updateIcon()
+    }
+
+    private func updateIcon() {
+        guard let icon = NSImage(named: isEmpty == false ? NSImage.trashFullName : NSImage.trashEmptyName)?.copy() as? NSImage else { return }
+        let dimension = PanelMetrics.utilityIconSize(for: buttonHeight.constant)
+        icon.size = NSSize(width: dimension, height: dimension)
+        button.image = icon
     }
 
     func refresh() {
@@ -66,7 +75,7 @@ final class TrashPlugin: NSObject, PanelPlugin {
             // Keep the last known icon until a query succeeds.
             guard let empty, self.isEmpty != empty else { return }
             self.isEmpty = empty
-            self.button.image = NSImage(named: empty ? NSImage.trashEmptyName : NSImage.trashFullName)
+            self.updateIcon()
             self.button.toolTip = empty ? "Trash is empty · Open in Finder" : "Trash contains items · Open in Finder"
             self.button.setAccessibilityLabel(empty ? "Trash (Empty)" : "Trash (Contains Items)")
         }

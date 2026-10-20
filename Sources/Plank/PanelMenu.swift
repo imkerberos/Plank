@@ -65,8 +65,15 @@ private final class PanelMenuController: NSViewController {
                 line.heightAnchor.constraint(equalToConstant: 7).isActive = true
                 height += 9
             } else {
-                let button = MenuActionButton(title: (item.state == .on ? "✓  " : "    ") + item.title,
+                let prefix = item.state == .on ? "✓  " : item.image == nil ? "    " : ""
+                let button = MenuActionButton(title: prefix + item.title,
                                               target: self, action: #selector(selectItem(_:)))
+                if let image = item.image?.copy() as? NSImage {
+                    image.size = NSSize(width: 18, height: 18)
+                    button.image = image
+                    button.imagePosition = .imageLeading
+                    button.imageScaling = .scaleProportionallyDown
+                }
                 button.tag = index
                 button.isEnabled = item.isEnabled && item.action != nil
                 button.alignment = .left

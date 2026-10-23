@@ -10,13 +10,15 @@ final class CodexUsageState: ObservableObject {
 }
 
 @MainActor
-final class CodexUsagePlugin: NSObject, PanelPlugin {
+final class CodexUsagePlugin: NSObject, PanelPlugin, NSPopoverDelegate {
     let id: String
     private let button = CodexUsageButton()
     private let state = CodexUsageState()
     private let popover = NSPopover()
     private var timer: Timer?
     private var task: Task<Void, Never>?
+    private var localMouseMonitor: Any?
+    private var globalMouseMonitor: Any?
     private var wakeObserver: NSObjectProtocol?
     private var active = false
     private var path: String?
@@ -38,6 +40,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
         button.setAccessibilityLabel("Codex usage details")
         popover.animates = false
         popover.behavior = .transient
+        popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: CodexUsageDetails(state: state) { [weak self] in self?.fetch() })
     }
 
@@ -70,7 +73,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
         timer?.invalidate(); timer = nil
         task?.cancel(); task = nil
         state.loading = false
-        popover.close()
+        closePopover()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         wakeObserver = nil
     }
@@ -120,7 +123,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
     }
 
     @objc private func togglePopover() {
-        if popover.isShown { popover.close(); return }
+        if popover.isShown { closePopover(); return }
         guard let window = button.window, let content = window.contentView else { return }
         content.layoutSubtreeIfNeeded()
         let buttonFrame = button.convert(button.bounds, to: content)
@@ -139,7 +142,57 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
             popover.contentSize = host.fittingSize
         }
         popover.show(relativeTo: anchor, of: content, preferredEdge: .maxY)
+        startMouseTracking()
     }
+
+    private func closePopover() {
+        popover.close()
+        stopMouseTracking()
+    }
+
+    private func startMouseTracking() {
+        guard localMouseMonitor == nil, globalMouseMonitor == nil else { return }
+        let mouseEvents: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: mouseEvents) { [weak self] event in
+            guard let self, self.popover.isShown else { return event }
+            if self.isInsidePopover(event) { return event }
+            if self.isInsideButton(event) {
+                self.closePopover()
+                return nil
+            }
+            self.closePopover()
+            return event
+        }
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: mouseEvents) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.popover.isShown else { return }
+                self.closePopover()
+            }
+        }
+    }
+
+    private func stopMouseTracking() {
+        if let localMouseMonitor { NSEvent.removeMonitor(localMouseMonitor) }
+        if let globalMouseMonitor { NSEvent.removeMonitor(globalMouseMonitor) }
+        localMouseMonitor = nil
+        globalMouseMonitor = nil
+    }
+
+    private func isInsidePopover(_ event: NSEvent) -> Bool {
+        if let popoverWindow = popover.contentViewController?.view.window,
+           event.window === popoverWindow { return true }
+        return false
+    }
+
+    private func isInsideButton(_ event: NSEvent) -> Bool {
+        if let panelWindow = button.window, event.window === panelWindow {
+            let point = button.convert(event.locationInWindow, from: nil)
+            return button.bounds.contains(point)
+        }
+        return false
+    }
+
+    func popoverDidClose(_ notification: Notification) { stopMouseTracking() }
 
     @objc private func manualRefresh() { fetch() }
     func addMenuItems(to menu: NSMenu) {
@@ -222,7 +275,7 @@ private struct CodexUsageDetails: View {
             Text(resetText(window, weekly: weekly))
                 .foregroundStyle(.secondary).monospacedDigit()
         }
-        .font(.system(size: 20))
+        .font(.system(size: 16))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(window.map { "\(Int($0.remaining.rounded())) percent remaining" } ?? "unavailable"), resets \(resetText(window, weekly: weekly))")
         .help("Remaining quota · Reset time")

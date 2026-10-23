@@ -41,12 +41,7 @@ final class ClockPlugin: PanelPlugin {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         configuration.createsNewApplicationInstance = false
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
-            if let error {
-                let message = error.localizedDescription
-                Task { @MainActor [weak self] in self?.showCalendarError(message) }
-            }
-        }
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration, completionHandler: nil)
     }
 
     private func showCalendarError(_ message: String) {

@@ -85,12 +85,7 @@ final class LauncherPlugin: NSObject, PanelPlugin {
             showError("Application not found. Remove this shortcut and drag the app in again from Finder.")
             return
         }
-        NSWorkspace.shared.openApplication(at: url, configuration: .init()) { [weak self] _, error in
-            if let error {
-                let message = error.localizedDescription
-                Task { @MainActor [weak self] in self?.showError(message) }
-            }
-        }
+        NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
     }
 
     private func showError(_ message: String) {

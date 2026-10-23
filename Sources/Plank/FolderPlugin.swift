@@ -56,12 +56,7 @@ final class FolderPlugin: NSObject, PanelPlugin {
         }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.open([url], withApplicationAt: finder, configuration: configuration) { [weak self] _, error in
-            if let error {
-                let message = error.localizedDescription
-                Task { @MainActor [weak self] in self?.showError(message) }
-            }
-        }
+        NSWorkspace.shared.open([url], withApplicationAt: finder, configuration: configuration, completionHandler: nil)
     }
 
     private func showError(_ message: String) {

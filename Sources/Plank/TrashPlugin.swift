@@ -124,12 +124,7 @@ final class TrashPlugin: NSObject, PanelPlugin {
         let trash = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash", isDirectory: true)
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.open([trash], withApplicationAt: finder, configuration: configuration) { [weak self] _, error in
-            if let error {
-                let message = error.localizedDescription
-                Task { @MainActor [weak self] in self?.showTrashError(message) }
-            }
-        }
+        NSWorkspace.shared.open([trash], withApplicationAt: finder, configuration: configuration, completionHandler: nil)
     }
 
     private func showTrashError(_ message: String, title: String = "Unable to Open Trash") {

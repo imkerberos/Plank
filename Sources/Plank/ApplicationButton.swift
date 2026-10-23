@@ -187,10 +187,6 @@ final class ApplicationButton: NSButton, NSDraggingSource {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         configuration.createsNewApplicationInstance = false
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
-            if error != nil {
-                Task { @MainActor [weak self] in self?.application.activate() }
-            }
-        }
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration, completionHandler: nil)
     }
 }

@@ -138,18 +138,7 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
 
     private func launch(_ application: CatalogApplication) {
         closeMenu()
-        NSWorkspace.shared.openApplication(at: application.url, configuration: .init()) { _, error in
-            if let error {
-                let message = error.localizedDescription
-                Task { @MainActor in
-                    NSApp.activate(ignoringOtherApps: true)
-                    let alert = NSAlert()
-                    alert.messageText = "Unable to Launch Application"
-                    alert.informativeText = message
-                    alert.runModal()
-                }
-            }
-        }
+        NSWorkspace.shared.openApplication(at: application.url, configuration: .init(), completionHandler: nil)
     }
 }
 

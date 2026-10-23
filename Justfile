@@ -27,7 +27,7 @@ test:
     check_dir=$(mktemp -d)
     trap 'rm -rf "$check_dir"' EXIT
     swiftc -swift-version 6 -parse-as-library \
-        Sources/Plank/{PluginPreferences,ClockPlugin,PanelPlugin,PluginSettingsContent,SettingsUI,PanelMenu,PluginContainer,AppBadgeContent,LauncherStore,PanelPreferences,ApplicationCatalog,DockReplacementState,TaskbarOrderState,DisksPlugin}.swift \
+        Sources/Plank/{PluginPreferences,ClockPlugin,PanelPlugin,PluginSettingsContent,SettingsUI,PanelMenu,PluginContainer,AppBadgeContent,LauncherStore,PanelPreferences,ApplicationCatalog,DockReplacementState,TaskbarOrderState,DisksPlugin,CodexUsageClient}.swift \
         Tests/PluginPreferencesChecks.swift -o "$check_dir/check-preferences"
     "$check_dir/check-preferences"
 

@@ -21,6 +21,7 @@ private func pluginType(for kind: String) -> any PanelPlugin.Type {
     case "showdesktop": ShowDesktopPlugin.self
     case "folder": FolderPlugin.self
     case "disks": DisksPlugin.self
+    case "codexusage": CodexUsagePlugin.self
     default: TrashPlugin.self
     }
 }

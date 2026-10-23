@@ -177,6 +177,16 @@ Add **Mounted Disks** from **Plugins… → Add…**. Click its yellow macOS ext
 
 The icon switches to the gray macOS disk icon and is disabled when no matching volumes are mounted. Enable **Hide when no disks are mounted** in the plugin settings to hide it instead. The plugin reappears automatically when a volume mounts. Internal system volumes and network shares are excluded.
 
+### Codex Usage
+
+Add **Codex Usage** from **Plugins… → Add…**. The panel shows two rows, **5h** and **W**, each with a remaining-quota progress bar followed by the remaining percentage. Click it for a compact **5h / Weekly** menu showing remaining percentages and reset times, plus a **Refresh** button.
+
+Sign in through Codex CLI or Desktop first. Before each request, Plank reads OAuth credentials from `auth.json` in its `CODEX_HOME` environment directory, falling back to `~/.codex`. In plugin settings you can specify a different Codex home directory; press Return to apply it. Finder-launched apps may not inherit shell environment variables. Keychain-only credentials and API-key authentication are not supported. Plank does not modify credentials, refresh OAuth tokens, store tokens in preferences, or start Codex CLI/App Server. If sign-in expires, sign in again through Codex and refresh.
+
+Usage refreshes immediately when enabled, then every five minutes. Errors retain the last successful data and mark the panel orange; retries back off to at most once per hour. Waking the Mac refreshes stale data. Hiding/removing the plugin stops its requests and timers. Multiple instances have independent settings.
+
+This monitors subscription Codex quota, not OpenAI Platform billing. It uses the internal `https://chatgpt.com/backend-api/wham/usage` endpoint, whose availability, authentication, and response format may change. Responses and credentials are not logged or persisted by this plugin.
+
 ### Separator
 
 Choose **Line** for a thin vertical divider spanning the panel height, or **Space** for a blank area of 8–400 pt. Enable **Expand to fill remaining panel space** to use the available space. Multiple expanding separators share that space equally.

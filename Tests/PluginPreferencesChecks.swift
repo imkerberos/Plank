@@ -6,6 +6,7 @@ import CoreGraphics
 struct PluginPreferencesChecks {
     @MainActor
     static func main() {
+        testCodexUsage()
         testMigratesExistingOrderAndHiddenState()
         testDefaultPluginOrder()
         testShowDesktopPluginLifecycle()
@@ -28,6 +29,21 @@ struct PluginPreferencesChecks {
         testTaskbarSettingsCompatibility()
         print("Passed: migration, independent instances and order, persistent empty panel, launcher validation, persistence and sorting, taskbar settings compatibility, panel height presets and bounds, application discovery and search, Dock rollback and recovery, reserved window geometry, fixed panel geometry, mounted disk classification and settings")
     }
+    static func testCodexUsage() {
+        let data = Data(#"{"plan_type":"plus","rate_limit":{"primary_window":{"used_percent":46,"limit_window_seconds":18000,"reset_at":1792733255},"secondary_window":{"used_percent":23,"limit_window_seconds":604800,"reset_after_seconds":60}}}"#.utf8)
+        let usage = try! CodexUsageResponse.decode(data)
+        precondition(usage.planType == "plus")
+        let primary = usage.rateLimit!.primaryWindow!
+        precondition(primary.remaining == 54 && primary.title == "5h")
+        precondition(primary.resetDate(receivedAt: .distantPast) == Date(timeIntervalSince1970: 1792733255))
+        let secondary = usage.rateLimit!.secondaryWindow!
+        precondition(secondary.remaining == 77 && secondary.title == "7d")
+        precondition(secondary.resetDate(receivedAt: Date(timeIntervalSince1970: 100)) == Date(timeIntervalSince1970: 160))
+        precondition((try? CodexUsageResponse.decode(Data("{}".utf8))) == nil)
+        let over = try! CodexUsageResponse.decode(Data(#"{"rate_limit":{"primary_window":{"used_percent":120}}}"#.utf8))
+        precondition(over.rateLimit!.primaryWindow!.remaining == 0)
+    }
+
     @MainActor
     static func testMountedDisks() {
         precondition(!MountedDiskReader.isExternal(internalDevice: true, removable: false, ejectable: false, deviceProtocol: "PCI-Express"))

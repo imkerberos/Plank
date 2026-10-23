@@ -36,6 +36,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
         height = button.heightAnchor.constraint(equalToConstant: 44)
         NSLayoutConstraint.activate([button.widthAnchor.constraint(equalToConstant: 126), height])
         button.setAccessibilityLabel("Codex usage details")
+        popover.animates = false
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: CodexUsageDetails(state: state) { [weak self] in self?.fetch() })
     }
@@ -119,8 +120,25 @@ final class CodexUsagePlugin: NSObject, PanelPlugin {
     }
 
     @objc private func togglePopover() {
-        if popover.isShown { popover.close() }
-        else { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY) }
+        if popover.isShown { popover.close(); return }
+        guard let window = button.window, let content = window.contentView else { return }
+        content.layoutSubtreeIfNeeded()
+        let buttonFrame = button.convert(button.bounds, to: content)
+        var x = buttonFrame.midX
+        if let event = NSApp.currentEvent, event.window === window,
+           event.type == .leftMouseUp || event.type == .leftMouseDown {
+            x = content.convert(event.locationInWindow, from: nil).x
+        }
+        x = min(max(x, content.bounds.minX), content.bounds.maxX - 1)
+        // Anchor to the panel edge, not the shorter button or its flipped coordinates.
+        // AppKit ignores an empty positioning rect and centers on the entire view.
+        let y = content.isFlipped ? content.bounds.minY : content.bounds.maxY - 1
+        let anchor = NSRect(x: x, y: y, width: 1, height: 1)
+        if let host = popover.contentViewController?.view {
+            host.layoutSubtreeIfNeeded()
+            popover.contentSize = host.fittingSize
+        }
+        popover.show(relativeTo: anchor, of: content, preferredEdge: .maxY)
     }
 
     @objc private func manualRefresh() { fetch() }

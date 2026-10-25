@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 final class FolderPlugin: NSObject, PanelPlugin {
     let id: String
-    private let button = NSButton()
+    private let button = PanelMenuButton()
     private var buttonSize: CGFloat = 44
     private var width: NSLayoutConstraint!
     private var height: NSLayoutConstraint!

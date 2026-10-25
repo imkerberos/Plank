@@ -96,7 +96,7 @@ enum DiskUnmountService {
 final class DisksPlugin: NSObject, PanelPlugin {
     let id: String
     var onChange: (() -> Void)?
-    private let button = NSButton()
+    private let button = PanelMenuButton()
     private var size: NSLayoutConstraint!
     private var timer: Timer?
     private var observing = false

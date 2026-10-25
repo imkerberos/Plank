@@ -6,6 +6,7 @@ final class TaskbarPlugin: PanelPlugin {
     private let stack = NSStackView()
     private var buttonSize: CGFloat = 44
     var view: NSView { stack }
+    var onChange: (() -> Void)?
 
     init(id: String) {
         self.id = id
@@ -38,12 +39,14 @@ final class TaskbarPlugin: PanelPlugin {
         applications.removeAll { $0.bundleIdentifier == "com.apple.finder" }
         if config?.taskbarHideFinder != true { applications.insert(contentsOf: finder, at: 0) }
         for application in applications {
-            stack.addArrangedSubview(ApplicationButton(
+            let button = ApplicationButton(
                 application: application,
                 showsTitle: config?.taskbarShowsTitles ?? false,
                 maximumWidth: config?.taskbarButtonMaximumWidth ?? 180,
                 buttonSize: buttonSize
-            ))
+            )
+            button.onLauncherChanged = { [weak self] in self?.onChange?() }
+            stack.addArrangedSubview(button)
         }
     }
 }

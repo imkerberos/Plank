@@ -4,7 +4,7 @@ import Darwin
 @MainActor
 final class ShowDesktopPlugin: NSObject, PanelPlugin {
     let id: String
-    private let button = NSButton()
+    private let button = PanelMenuButton()
     private var buttonWidth: NSLayoutConstraint!
     private var buttonHeight: NSLayoutConstraint!
     var view: NSView { button }

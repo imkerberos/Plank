@@ -1,5 +1,21 @@
 import AppKit
 
+/// Route plugin button context menus through the same presenter as panel handles.
+@MainActor
+class PanelMenuButton: NSButton {
+    override func rightMouseDown(with event: NSEvent) {
+        var source: NSView? = self
+        while let view = source {
+            if let menu = view.menu {
+                PanelMenu.show(menu, from: self, event: event)
+                return
+            }
+            source = view.superview
+        }
+        super.rightMouseDown(with: event)
+    }
+}
+
 /// A compact menu presenter that is not confined to the nonactivating panel's
 /// short window bounds. NSMenu remains the action/checkmark model.
 @MainActor
@@ -18,13 +34,7 @@ enum PanelMenu {
         popover.contentSize = controller.preferredContentSize
         current = popover
         controller.onClose = { [weak popover] in popover?.performClose(nil) }
-        var anchor = view.bounds
-        if let event {
-            let point = view.convert(event.locationInWindow, from: nil)
-            anchor = NSRect(x: max(view.bounds.minX, min(point.x, view.bounds.maxX - 1)),
-                            y: view.bounds.midY, width: 1, height: 1)
-        }
-        popover.show(relativeTo: anchor, of: view, preferredEdge: .maxY)
+        PanelPopover.show(popover, from: view, event: event)
         NSApp.activate(ignoringOtherApps: true)
         controller.focusMenu()
     }
@@ -220,5 +230,61 @@ final class PanelContentView: NSView {
 final class PanelStackView: NSStackView {
     override func rightMouseDown(with event: NSEvent) {
         if let menu { PanelMenu.show(menu, from: self, event: event) }
+    }
+}
+
+/// Shared presentation for panel menus and plugin detail popovers.
+@MainActor
+enum PanelPopover {
+    static func insetX(_ x: CGFloat, in frame: NSRect, margin: CGFloat = 32) -> CGFloat {
+        let inset = min(margin, max(0, (frame.width - 1) / 2))
+        return min(max(x, frame.minX + inset), frame.maxX - inset - 1)
+    }
+
+    static func show(_ popover: NSPopover, from view: NSView, event: NSEvent? = nil) {
+        guard let window = view.window, let content = window.contentView else { return }
+        content.layoutSubtreeIfNeeded()
+        let source = view.convert(view.bounds, to: content)
+        var x = source.midX
+        if let event, event.window === window {
+            x = content.convert(event.locationInWindow, from: nil).x
+        }
+        // Leave room for the native arrow and rounded corner at screen edges.
+        // Use the whole panel as the anchor host so narrow edge handles can
+        // shift inward without AppKit clipping away the arrow.
+        if let screen = window.screen {
+            let visible = content.convert(window.convertFromScreen(screen.visibleFrame), from: nil)
+            x = insetX(x, in: visible)
+        }
+        x = min(max(x, content.bounds.minX), content.bounds.maxX - 1)
+        let y = content.isFlipped ? content.bounds.minY : content.bounds.maxY - 1
+        let anchor = NSRect(x: x, y: y, width: 1, height: 1)
+        popover.show(relativeTo: anchor, of: content, preferredEdge: .maxY)
+    }
+}
+
+@MainActor
+final class PanelPopoverBackground: NSVisualEffectView {
+    var arrowX: CGFloat = 32
+    var pointsDown = true
+
+    override func layout() {
+        super.layout()
+        let arrowHeight: CGFloat = 10
+        let body = NSRect(x: bounds.minX,
+                          y: bounds.minY + (pointsDown ? arrowHeight : 0),
+                          width: bounds.width, height: max(0, bounds.height - arrowHeight))
+        let path = CGMutablePath()
+        path.addRoundedRect(in: body, cornerWidth: 12, cornerHeight: 12)
+        let x = PanelPopover.insetX(arrowX, in: bounds)
+        let base = pointsDown ? body.minY : body.maxY
+        let tip = pointsDown ? bounds.minY : bounds.maxY
+        path.move(to: NSPoint(x: x - 10, y: base))
+        path.addLine(to: NSPoint(x: x, y: tip))
+        path.addLine(to: NSPoint(x: x + 10, y: base))
+        path.closeSubpath()
+        let mask = CAShapeLayer()
+        mask.path = path
+        layer?.mask = mask
     }
 }

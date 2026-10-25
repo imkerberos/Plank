@@ -6,6 +6,7 @@ final class ApplicationButton: NSButton, NSDraggingSource {
     private let showsTitle: Bool
     private var pressOrigin: NSPoint?
     private var isDraggingApplication = false
+    var onLauncherChanged: (() -> Void)?
 
     init(application: NSRunningApplication, showsTitle: Bool = false, maximumWidth: Double = 180, buttonSize: CGFloat = 44) {
         self.application = application
@@ -141,6 +142,8 @@ final class ApplicationButton: NSButton, NSDraggingSource {
         menu.addItem(.separator())
         addItem("Show", action: #selector(activateApplication), to: menu)
         addItem(application.isHidden ? "Unhide" : "Hide", action: #selector(toggleHidden), to: menu)
+        let launcher = addItem("Add to Launcher", action: #selector(addToLauncher), to: menu)
+        launcher.isEnabled = application.bundleURL.flatMap(LauncherStore.applicationURL) != nil
         let reveal = addItem("Show in Finder", action: #selector(revealApplication), to: menu)
         reveal.isEnabled = application.bundleURL != nil
         menu.addItem(.separator())
@@ -166,6 +169,31 @@ final class ApplicationButton: NSButton, NSDraggingSource {
 
     @objc private func revealApplication() {
         if let url = application.bundleURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+    }
+
+    @objc private func addToLauncher() {
+        guard let url = application.bundleURL.flatMap(LauncherStore.applicationURL) else { return }
+        let launchers = PluginPreferences.configurations.filter { $0.kind == "launcher" }
+        let id: String
+        if launchers.count > 1 {
+            let alert = NSAlert()
+            alert.messageText = "Add to Launcher"
+            alert.informativeText = "Choose a Launcher for \(application.localizedName ?? "this application")."
+            let picker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 260, height: 26))
+            for (index, launcher) in launchers.enumerated() {
+                picker.addItem(withTitle: "\(index + 1). \(launcher.name)")
+            }
+            alert.accessoryView = picker
+            alert.addButton(withTitle: "Add")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            id = launchers[picker.indexOfSelectedItem].id
+        } else {
+            id = launchers.first?.id ?? PluginPreferences.add(kind: "launcher")
+        }
+        guard LauncherStore.add([url], to: id) else { return }
+        PluginPreferences.setEnabled(true, for: id)
+        onLauncherChanged?()
     }
 
     @objc private func quitApplication() { application.terminate() }

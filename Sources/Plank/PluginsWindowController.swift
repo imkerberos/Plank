@@ -150,7 +150,7 @@ final class PluginsWindowController: NSWindowController, NSTableViewDataSource, 
             item.target = self
             item.representedObject = kind
         }
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY), in: sender)
+        PanelMenu.show(menu, from: sender)
     }
 
     @objc private func addKind(_ sender: NSMenuItem) {

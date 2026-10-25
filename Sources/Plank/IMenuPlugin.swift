@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
     let id: String
-    private let button = NSButton()
+    private let button = PanelMenuButton()
     private let menuPanel = ApplicationsMenuPanel(contentRect: .zero, styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
     private var menuAnchor: NSRect?
     private var menuSafeFrame: NSRect?
@@ -88,6 +88,7 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
         let y = min(max(preferredY, safe.minY), safe.maxY - size.height)
         menuPanel.setContentSize(size)
         menuPanel.setFrameOrigin(NSPoint(x: x, y: y))
+        menuController.setArrow(x: anchor.midX - x, pointsDown: opensAbove)
         NSApp.activate(ignoringOtherApps: true)
         menuPanel.makeKeyAndOrderFront(nil)
         installDismissMonitors()
@@ -100,6 +101,7 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
         let x = min(max(anchor.minX, safe.minX), safe.maxX - size.width)
         let y = opensAbove ? anchor.maxY : anchor.minY - size.height
         menuPanel.setFrameOrigin(NSPoint(x: x, y: y))
+        menuController.setArrow(x: anchor.midX - x, pointsDown: opensAbove)
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
@@ -164,13 +166,22 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
     private var filtered: [CatalogApplication] = []
     private var loadingTask: Task<Void, Never>?
 
+    func setArrow(x: CGFloat, pointsDown: Bool) {
+        loadViewIfNeeded()
+        guard let background = view as? PanelPopoverBackground else { return }
+        background.arrowX = x
+        background.pointsDown = pointsDown
+        background.needsLayout = true
+        background.layoutSubtreeIfNeeded()
+        view.window?.invalidateShadow()
+    }
+
     override func loadView() {
-        let background = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 400, height: 480))
+        let background = PanelPopoverBackground(frame: NSRect(x: 0, y: 0, width: 400, height: 480))
         background.material = .popover
         background.blendingMode = .behindWindow
         background.state = .active
         background.wantsLayer = true
-        background.layer?.cornerRadius = 12
         background.layer?.masksToBounds = true
         view = background
         let title = NSTextField(labelWithString: "Applications")
@@ -242,8 +253,8 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         NSLayoutConstraint.activate([
             content.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            content.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
-            content.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+            content.topAnchor.constraint(equalTo: view.topAnchor, constant: 26),
+            content.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -22),
             search.widthAnchor.constraint(equalTo: content.widthAnchor),
             scroll.widthAnchor.constraint(equalTo: content.widthAnchor),
             header.widthAnchor.constraint(equalTo: content.widthAnchor),

@@ -35,12 +35,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self
         let pluginsItem = menu.addItem(withTitle: "Plugins…", action: #selector(showPlugins), keyEquivalent: "")
         pluginsItem.target = self
+        let dock = menu.addItem(withTitle: systemDock.isActive ? "Show Dock" : "Hide Dock",
+                                action: #selector(toggleSystemDock), keyEquivalent: "")
+        dock.target = self
         let lock = menu.addItem(withTitle: "Lock", action: #selector(toggleLock), keyEquivalent: "")
         lock.target = self
         lock.state = PanelPreferences.isLocked ? .on : .off
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Plank", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
+    }
+
+    @objc private func toggleSystemDock() {
+        if !systemDock.setEnabled(!systemDock.isActive) {
+            showSettings()
+        }
     }
 
     @objc private func toggleLock() {
@@ -299,6 +308,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if let launcher = plugin as? LauncherPlugin {
                 launcher.onChange = { [weak self] in self?.refresh() }
+            }
+            if let taskbar = plugin as? TaskbarPlugin {
+                taskbar.onChange = { [weak self] in self?.refresh() }
             }
             if let clock = plugin as? ClockPlugin {
                 clock.onWidthChanged = { [weak self] in self?.refresh() }

@@ -124,24 +124,14 @@ final class CodexUsagePlugin: NSObject, PanelPlugin, NSPopoverDelegate {
 
     @objc private func togglePopover() {
         if popover.isShown { closePopover(); return }
-        guard let window = button.window, let content = window.contentView else { return }
-        content.layoutSubtreeIfNeeded()
-        let buttonFrame = button.convert(button.bounds, to: content)
-        var x = buttonFrame.midX
-        if let event = NSApp.currentEvent, event.window === window,
-           event.type == .leftMouseUp || event.type == .leftMouseDown {
-            x = content.convert(event.locationInWindow, from: nil).x
+        let event = NSApp.currentEvent.flatMap {
+            $0.type == .leftMouseUp || $0.type == .leftMouseDown ? $0 : nil
         }
-        x = min(max(x, content.bounds.minX), content.bounds.maxX - 1)
-        // Anchor to the panel edge, not the shorter button or its flipped coordinates.
-        // AppKit ignores an empty positioning rect and centers on the entire view.
-        let y = content.isFlipped ? content.bounds.minY : content.bounds.maxY - 1
-        let anchor = NSRect(x: x, y: y, width: 1, height: 1)
         if let host = popover.contentViewController?.view {
             host.layoutSubtreeIfNeeded()
             popover.contentSize = host.fittingSize
         }
-        popover.show(relativeTo: anchor, of: content, preferredEdge: .maxY)
+        PanelPopover.show(popover, from: button, event: event)
         startMouseTracking()
     }
 
@@ -208,7 +198,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin, NSPopoverDelegate {
 
 /// Draw both quota rows inside one native button so the whole display remains clickable.
 @MainActor
-private final class CodexUsageButton: NSButton {
+private final class CodexUsageButton: PanelMenuButton {
     var primaryRemaining: Double?
     var weeklyRemaining: Double?
     var hasError = false

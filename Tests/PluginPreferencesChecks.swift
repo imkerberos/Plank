@@ -477,6 +477,16 @@ struct PluginPreferencesChecks {
         precondition(CatalogApplication.matching("tools", in: found).count == 1)
         precondition(CatalogApplication.matching("Finder", in: found).count == 1)
         precondition(CatalogApplication.matching("not installed", in: found).isEmpty)
+        let ranked = ["Visual Studio Code", "Code Runner", "Code"].map {
+            CatalogApplication(url: URL(fileURLWithPath: "/Applications/\($0).app"), name: $0)
+        }
+        precondition(CatalogApplication.matching("code", in: ranked).map(\.name) == ["Code", "Code Runner", "Visual Studio Code"])
+        precondition(CatalogApplication.matching("vsc", in: ranked).map(\.name) == ["Visual Studio Code"])
+        precondition(CatalogApplication.matching("  ", in: ranked) == ranked)
+        precondition(CatalogApplication.matching("", in: ranked) == ranked)
+        precondition(CatalogApplication.matching("cafe", in: found).first?.name == "Café Editor")
+        precondition(CatalogApplication.matching("code runner", in: ranked).map(\.name) == ["Code Runner"])
+        precondition(CatalogApplication.matching("zzzz", in: ranked).isEmpty)
     }
 
     @MainActor

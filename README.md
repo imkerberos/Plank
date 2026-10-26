@@ -122,7 +122,7 @@ When unlocked, each plugin except Separator has a vertical three-dot handle. Cli
 
 ### iMenu
 
-Click the four-square icon to browse applications. Type to search, click a result to launch it, or use arrow keys and Return. Press Esc or click outside to close.
+Click the four-square icon to browse applications. With an empty search, no app is selected. Type to fuzzy-search applications: the best match is highlighted automatically, and Return launches it. You can also click a result or use arrow keys and Return. Press Esc or click outside to close.
 
 In iMenu settings, choose **List View** or **Icon View**. Icon View displays larger icons and app names in a grid that adapts to the menu width. Drag the menu's edges or corners to resize it; each iMenu remembers its size. The menu aligns with its button and stays next to the panel.
 

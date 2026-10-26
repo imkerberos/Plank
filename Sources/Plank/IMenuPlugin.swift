@@ -318,6 +318,10 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         table.reloadData()
         if showsIcons { grid.setApplications(filtered) }
         table.deselectAll(nil)
+        if !search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !filtered.isEmpty {
+            if showsIcons { grid.select(0) }
+            else { table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false) }
+        }
         if !filtered.isEmpty { table.scrollRowToVisible(0) }
         status.stringValue = filtered.isEmpty ? "No matching applications" : "\(filtered.count) apps · Click to launch · Esc to close"
         status.toolTip = status.stringValue

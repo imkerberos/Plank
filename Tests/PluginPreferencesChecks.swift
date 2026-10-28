@@ -33,6 +33,9 @@ struct PluginPreferencesChecks {
         let data = Data(#"{"plan_type":"plus","rate_limit":{"primary_window":{"used_percent":46,"limit_window_seconds":18000,"reset_at":1792733255},"secondary_window":{"used_percent":23,"limit_window_seconds":604800,"reset_after_seconds":60}}}"#.utf8)
         let usage = try! CodexUsageResponse.decode(data)
         precondition(usage.planType == "plus")
+        let resets = try! CodexUsageResponse.decode(Data(#"{"rate_limit":{"primary_window":{"used_percent":10}},"rate_limit_reset_credits":{"available_count":2,"applicable_available_count":1}}"#.utf8))
+        precondition(resets.rateLimitResetCredits?.availableCount == 2)
+        precondition(usage.rateLimitResetCredits == nil)
         let primary = usage.rateLimit!.primaryWindow!
         precondition(primary.remaining == 54 && primary.title == "5h")
         precondition(primary.resetDate(receivedAt: .distantPast) == Date(timeIntervalSince1970: 1792733255))

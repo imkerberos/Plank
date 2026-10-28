@@ -240,6 +240,14 @@ private struct CodexUsageDetails: View {
         VStack(alignment: .leading, spacing: 12) {
             quotaRow("5h", window: state.usage?.rateLimit?.primaryWindow, weekly: false)
             quotaRow("Weekly", window: state.usage?.rateLimit?.secondaryWindow, weekly: true)
+            Divider()
+            HStack {
+                Text("Usage limit resets")
+                Spacer()
+                Text(state.usage?.rateLimitResetCredits?.availableCount.map { "\($0) available" } ?? "Unavailable")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.system(size: 13))
             if let error = state.error {
                 Text((state.usage == nil ? "" : "Last successful data · ") + error)
                     .font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)

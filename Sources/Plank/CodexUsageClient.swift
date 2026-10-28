@@ -3,6 +3,11 @@ import Foundation
 struct CodexUsageResponse: Decodable, Sendable {
     let planType: String?
     let rateLimit: RateLimit?
+    let rateLimitResetCredits: ResetCredits?
+
+    struct ResetCredits: Decodable, Sendable {
+        let availableCount: Int?
+    }
 
     struct RateLimit: Decodable, Sendable {
         let primaryWindow: Window?

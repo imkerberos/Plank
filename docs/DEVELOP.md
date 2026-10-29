@@ -110,7 +110,7 @@ An initial badge snapshot is requested before Dock replacement restarts the Dock
 
 `IMenuPlugin.swift` owns an arrowless resizable panel at popup-menu level. It anchors to the iMenu button, stays flush against the panel, and clamps to usable screen bounds without extra edge margins. It saves size independently per instance. Outside-click monitors and Esc dismiss it.
 
-The menu provides list and icon-grid modes, filtering, keyboard navigation, and system-action buttons. Opening or clearing the search leaves applications unselected. Nonempty searches rank fuzzy matches and select the highest-scoring result in either view, so Return launches it directly; Down moves focus into the results. Rows and icons show hover feedback, with selection/pressed feedback on interaction. System actions use labeled bordered buttons below a separator and a System heading. `ApplicationCatalog.swift` scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. It skips hidden files, background applications, and nested helpers, deduplicates paths, and refreshes in the background on opening.
+The menu provides list and icon-grid modes, filtering, keyboard navigation, and system-action buttons. Opening or clearing the search leaves applications unselected. Nonempty searches rank fuzzy matches and select the highest-scoring result in either view, so Return launches it directly; Down moves focus into the results. Rows and icons show hover feedback, with selection/pressed feedback on interaction. System actions use square bordered buttons with icons above their labels, below a separator and a System heading. `ApplicationCatalog.swift` scans `/Applications`, `/System/Applications`, system utilities, and `~/Applications`, and includes Finder. It skips hidden files, background applications, and nested helpers, deduplicates paths, and refreshes in the background on opening.
 
 `SystemSessionAction.swift` uses AppleScript targeting System Events for Lock, Sleep, Restart, and Shut Down. Restart and Shut Down require confirmation with Cancel as the default; cancellation is not reported as an error. These actions use Automation permission, with Accessibility also needed for locking.
 
@@ -145,6 +145,23 @@ The plugin uses `NSImage.trashEmptyName` and `NSImage.trashFullName`. A backgrou
 `ShowDesktopPlugin.swift` dynamically loads `CoreDockSendNotification` from HIServices and sends `com.apple.showdesktop.awake`, following [Hammerspoon's implementation](https://github.com/Hammerspoon/hammerspoon/blob/master/extensions/spaces/spaces.lua). The symbol is resolved at runtime so its absence does not prevent app startup. Missing symbols and nonzero return codes produce a user-visible error, with no alternative action attempted.
 
 This is a private interface and may change across macOS versions. The plugin leaves display and Spaces behavior to macOS and maintains no local active-state flag, since the user can toggle Show Desktop externally. It neither depends on Hammerspoon nor synthesizes keyboard input.
+
+## Private macOS Interfaces and Compatibility
+
+A source audit identifies one explicitly loaded private macOS function, plus several dependencies on undocumented system behavior. These are separate from the public APIs used to access them:
+
+| Interface or dependency | Source and purpose | Classification and failure behavior |
+| --- | --- | --- |
+| `CoreDockSendNotification(CFString, Int32) -> Int32`, notification `com.apple.showdesktop.awake` | `ShowDesktopPlugin.swift`, `DesktopToggle.perform()`; toggles the Dock's Show Desktop action. Loads `/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/HIServices` with `dlopen`, resolves the symbol with `dlsym`, and passes argument `0`. | Private function and internal notification. Runtime loading avoids a startup linkage failure, but does not guarantee ABI compatibility. Missing library/symbol or a nonzero result shows an error; there is no fallback. |
+| Accessibility attribute `AXStatusLabel` | `DockBadgeCenter.swift`; reads application badges from Dock items. | Public Accessibility transport (`AXUIElementCopyAttributeValue`), with a Dock-specific attribute absent from the checked public SDK headers. Missing labels are not inferred. `AXApplicationDockItem`, although supplied as a string in the code, is a public SDK subrole (`kAXApplicationDockItemSubrole`). |
+| Accessibility attribute `AXFullScreen` | `WindowSpaceGuard.swift` and `TaskbarWindowController.swift`; excludes full-screen windows from resizing/minimizing. | Public Accessibility transport with an attribute absent from the checked public SDK headers. A missing value currently behaves as false, so this exclusion depends on applications exposing it. This is distinct from the public `AXFullScreenButton` attribute. |
+| Dock preferences `com.apple.dock`: `autohide`, `autohide-delay` | `SystemDockController.swift`; hides the Dock and delays its reveal, then invokes `/usr/bin/killall Dock`. | `CFPreferences` and process execution are public APIs; the Dock preference keys and reload behavior are implementation dependencies, not a private linked function. Original values are saved and restored by the Dock replacement session. |
+
+The audit found no direct use of private `CGS*`/`SLS*` window-server or Spaces functions. Window enumeration uses public `CGWindowListCopyWindowInfo`; window adjustment uses public Accessibility APIs. AppKit panels, `NSWorkspace`, `NSAppleScript` automation of Finder/System Events, and service-management APIs are not private APIs merely because they affect other applications or require permission.
+
+The Codex Usage plugin also depends on the non-public ChatGPT web endpoint `/backend-api/wham/usage` and its response schema. This is a remote service dependency, not a macOS private API.
+
+After a macOS upgrade, verify Show Desktop toggle/restore, badge reads, full-screen exclusions, and Dock hide/restore independently. Build success alone does not validate these runtime contracts.
 
 ## Dock Replacement and Window Space
 

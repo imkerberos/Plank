@@ -75,7 +75,7 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
         let savedHeight = defaults.double(forKey: "plugin.\(id).menuHeight")
         let availableHeight = min(max(above, below), safe.height)
         let maximum = NSSize(width: safe.width, height: availableHeight)
-        let minimum = NSSize(width: min(360, maximum.width), height: min(300, maximum.height))
+        let minimum = NSSize(width: min(360, maximum.width), height: min(350, maximum.height))
         let size = NSSize(width: min(maximum.width, max(minimum.width, savedWidth.isFinite && savedWidth > 0 ? savedWidth : 400)),
                           height: min(maximum.height, max(minimum.height, savedHeight.isFinite && savedHeight > 0 ? savedHeight : 480)))
         menuAnchor = anchor
@@ -141,6 +141,53 @@ final class IMenuPlugin: NSObject, PanelPlugin, NSWindowDelegate {
     private func launch(_ application: CatalogApplication) {
         closeMenu()
         NSWorkspace.shared.openApplication(at: application.url, configuration: .init(), completionHandler: nil)
+    }
+}
+
+@MainActor
+private final class SystemActionButton: NSButton {
+    private var hoverArea: NSTrackingArea?
+    private var hovered = false
+    override var isFlipped: Bool { false }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea { removeTrackingArea(hoverArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        hoverArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if hovered || isHighlighted {
+            let shape = NSBezierPath(roundedRect: bounds, xRadius: 7, yRadius: 7)
+            NSColor.controlAccentColor.withAlphaComponent(isHighlighted ? 0.25 : 0.12).setFill()
+            shape.fill()
+        }
+        let iconSize: CGFloat = 22
+        let tinted = image.map { source in
+            NSImage(size: source.size, flipped: false) { rect in
+                source.draw(in: rect)
+                NSColor.labelColor.setFill()
+                rect.fill(using: .sourceIn)
+                return true
+            }
+        }
+        tinted?.draw(in: NSRect(x: (bounds.width - iconSize) / 2, y: bounds.midY + 3,
+                               width: iconSize, height: iconSize))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        paragraph.lineBreakMode = .byTruncatingTail
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font ?? NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraph
+        ]
+        (title as NSString).draw(in: NSRect(x: 2, y: bounds.midY - 19, width: bounds.width - 4, height: 16),
+                                 withAttributes: attributes)
     }
 }
 
@@ -219,21 +266,21 @@ private final class ApplicationsMenuController: NSViewController, NSTableViewDat
         header.alignment = .firstBaseline
         header.spacing = 10
         let actions = NSStackView()
-        actions.distribution = .fillEqually
+        actions.distribution = .gravityAreas
         actions.spacing = 8
         for (index, action) in SystemSessionAction.allCases.enumerated() {
-            let button = NSButton(title: action.title, target: self, action: #selector(systemActionClicked(_:)))
+            let button = SystemActionButton(title: action.title, target: self, action: #selector(systemActionClicked(_:)))
             button.tag = index
             button.image = action.icon
-            button.imagePosition = .imageLeading
+            button.imagePosition = .imageAbove
             button.imageScaling = .scaleProportionallyDown
-            button.isBordered = true
-            button.bezelStyle = .rounded
+            button.isBordered = false
             button.font = .systemFont(ofSize: 11)
             button.toolTip = action == .lock ? "Lock Screen" : action.title
             button.setAccessibilityLabel(button.toolTip!)
-            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-            actions.addArrangedSubview(button)
+            button.widthAnchor.constraint(equalToConstant: 68).isActive = true
+            button.heightAnchor.constraint(equalTo: button.widthAnchor).isActive = true
+            actions.addView(button, in: .trailing)
         }
         let separator = NSBox()
         separator.boxType = .separator

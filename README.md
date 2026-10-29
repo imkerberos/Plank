@@ -195,7 +195,7 @@ Choose **Line** for a thin vertical divider spanning the panel height, or **Spac
 
 Choose **Digital**, **Analog**, or **Binary** in Clock settings. Digital and Binary support **Use 24-Hour Time**; all styles support **Show Seconds**. Hover over the clock for the date and readable time.
 
-Enable **Open Calendar on Click** in Clock settings to open the system Calendar app by clicking the clock. This works with every clock style, including while the panel is locked. It defaults to off and is saved independently for each Clock.
+Click any Clock to show a calendar, then choose **Open Calendar** to launch the system Calendar app. This works with every clock style, including while the panel is locked.
 
 Binary clock columns represent decimal digits. Read the lit dots from top to bottom as **8, 4, 2, 1**, and add them to obtain each digit. The groups are hours, minutes, and optional seconds. New panels use Binary; existing clocks keep their saved style.
 

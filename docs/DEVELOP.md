@@ -120,7 +120,7 @@ The menu provides list and icon-grid modes, filtering, keyboard navigation, and 
 
 `SeparatorPlugin.swift` supplies settings for Line or Space. `SeparatorView` draws a one-point line explicitly across the full panel height, avoiding disappearing `NSBox.separator` rendering at narrow widths. Space accepts fixed widths of 8–400 pt or expansion to fill remaining panel width.
 
-Clock’s optional `clockOpensCalendar` setting defaults to off for older and new instances. Its display routes clicks and accessibility presses to Launch Services using Calendar’s `com.apple.iCal` identifier; it does not read calendar data or require Calendar/Automation permission. Pointer drags are excluded from launching, and right-click plugin menus retain their behavior.
+Clock clicks and accessibility presses show a native calendar popover. Its Open Calendar button launches the system app using the `com.apple.iCal` identifier; the popover does not read calendar events or require Calendar/Automation permission. Pointer drags do not open the popover, and right-click plugin menus retain their behavior. The old `clockOpensCalendar` setting is retained for configuration compatibility but no longer controls clicks.
 
 ### Folder
 

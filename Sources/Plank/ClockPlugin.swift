@@ -21,16 +21,66 @@ struct ClockTime {
 }
 
 @MainActor
-final class ClockPlugin: PanelPlugin {
+final class ClockPlugin: NSObject, PanelPlugin, NSPopoverDelegate {
     let id: String
     private let display = ClockDisplayView()
+    private let popover = NSPopover()
+    private var localMouseMonitor: Any?
+    private var globalMouseMonitor: Any?
     private var timer: Timer?
     var onWidthChanged: (() -> Void)?
     var view: NSView { display }
 
     init(id: String) {
         self.id = id
-        display.onOpenCalendar = { [weak self] in self?.openCalendar() }
+        super.init()
+        display.onOpenCalendar = { [weak self] in self?.toggleCalendar() }
+        popover.animates = false
+        popover.behavior = .applicationDefined
+        popover.delegate = self
+    }
+
+    private func toggleCalendar() {
+        if popover.isShown { closeCalendar(); return }
+        let controller = CalendarPopoverController { [weak self] in
+            self?.closeCalendar()
+            self?.openCalendar()
+        }
+        popover.contentViewController = controller
+        popover.contentSize = controller.preferredContentSize
+        PanelPopover.show(popover, from: display, event: NSApp.currentEvent)
+        guard popover.isShown else { return }
+        let events: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: events) { [weak self] event in
+            guard let self, self.popover.isShown else { return event }
+            if event.window === self.popover.contentViewController?.view.window { return event }
+            if event.window === self.display.window,
+               self.display.bounds.contains(self.display.convert(event.locationInWindow, from: nil)) {
+                self.closeCalendar()
+                return nil
+            }
+            self.closeCalendar()
+            return event
+        }
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: events) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.closeCalendar() }
+        }
+    }
+
+    private func closeCalendar() {
+        popover.close()
+        stopMouseTracking()
+    }
+
+    private func stopMouseTracking() {
+        if let localMouseMonitor { NSEvent.removeMonitor(localMouseMonitor) }
+        if let globalMouseMonitor { NSEvent.removeMonitor(globalMouseMonitor) }
+        localMouseMonitor = nil
+        globalMouseMonitor = nil
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        stopMouseTracking()
     }
 
     private func openCalendar() {
@@ -70,13 +120,12 @@ final class ClockPlugin: PanelPlugin {
         }
     }
 
-    func stop() { timer?.invalidate(); timer = nil }
+    func stop() { timer?.invalidate(); timer = nil; closeCalendar() }
 }
 
 @MainActor
 private final class ClockDisplayView: NSView {
     var onOpenCalendar: (() -> Void)?
-    private var opensCalendar = false
     private var pressOrigin: NSPoint?
     private let label = NSTextField(labelWithString: "")
     private let formatter = DateFormatter()
@@ -116,7 +165,6 @@ private final class ClockDisplayView: NSView {
         style = configuration?.clockDisplayStyle ?? .digital
         showSeconds = configuration?.showSeconds ?? false
         use24HourTime = configuration?.use24HourTime ?? false
-        opensCalendar = configuration?.clockOpensCalendar == true
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
@@ -129,10 +177,10 @@ private final class ClockDisplayView: NSView {
         label.stringValue = text
         label.isHidden = style != .digital
         let dateText = date.formatted(Date.FormatStyle(date: .complete, time: .omitted).locale(Locale(identifier: "en_US")))
-        toolTip = "\(dateText) · \(text)" + (opensCalendar ? " · Click to open Calendar" : "")
-        setAccessibilityElement(opensCalendar || style != .digital)
-        setAccessibilityRole(opensCalendar ? .button : .image)
-        setAccessibilityLabel(opensCalendar ? "Open Calendar" : "\(style.title) clock")
+        toolTip = "\(dateText) · \(text) · Click to show calendar"
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("Show calendar")
         setAccessibilityValue(text)
         let width: CGFloat
         switch style {
@@ -201,7 +249,8 @@ private final class ClockDisplayView: NSView {
         let digits = time.binaryDigits(use24HourTime: use24HourTime, showSeconds: showSeconds)
         let pitch = dotPitch
         let size = max(2, pitch - 2)
-        let top = bounds.midY + 2 * pitch + 3
+        let showLabels = panelHeight > 32
+        let top = bounds.midY + 2 * pitch + (showLabels ? 3 : 0)
         for (column, digit) in digits.enumerated() {
             let x = 6 + CGFloat(column) * pitch + CGFloat(column / 2) * 5
             for row in 0..<4 {
@@ -211,6 +260,7 @@ private final class ClockDisplayView: NSView {
                 NSBezierPath(roundedRect: NSRect(x: x, y: y, width: size, height: size), xRadius: 1.5, yRadius: 1.5).fill()
             }
         }
+        guard showLabels else { return }
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 8, weight: .medium), .foregroundColor: NSColor.secondaryLabelColor]
         for group in 0..<(digits.count / 2) {
             let text = ["H", "M", "S"][group] as NSString
@@ -229,7 +279,7 @@ private final class ClockDisplayView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        pressOrigin = opensCalendar ? event.locationInWindow : nil
+        pressOrigin = event.locationInWindow
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -241,13 +291,13 @@ private final class ClockDisplayView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         defer { pressOrigin = nil }
-        guard opensCalendar, pressOrigin != nil,
+        guard pressOrigin != nil,
               bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
         onOpenCalendar?()
     }
 
     override func accessibilityPerformPress() -> Bool {
-        guard opensCalendar, let onOpenCalendar else { return false }
+        guard let onOpenCalendar else { return false }
         onOpenCalendar()
         return true
     }
@@ -266,7 +316,6 @@ private final class ClockSettings: PluginSettingsContent {
     private let use24HourTime = NSButton(checkboxWithTitle: "Use 24-Hour Time", target: nil, action: nil)
     private let clockStyle = NSPopUpButton()
     private let clockHint = SettingsUI.help("")
-    private let openCalendar = NSButton(checkboxWithTitle: "Open Calendar on Click", target: nil, action: nil)
 
     init(configuration: PluginConfiguration) {
         super.init(sectionTitle: "Clock Display", windowHeight: 520)
@@ -282,10 +331,7 @@ private final class ClockSettings: PluginSettingsContent {
         seconds.state = configuration.showSeconds ? .on : .off
         seconds.target = self
         seconds.action = #selector(requestSave)
-        openCalendar.state = configuration.clockOpensCalendar == true ? .on : .off
-        openCalendar.target = self
-        openCalendar.action = #selector(requestSave)
-        options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, openCalendar, clockHint,
+        options = [SettingsUI.row("Style", control: clockStyle), use24HourTime, seconds, clockHint,
                    SettingsUI.help("Uses your Mac’s current time zone. Hover over the clock to see the date and time.")]
     }
 
@@ -306,6 +352,47 @@ private final class ClockSettings: PluginSettingsContent {
         }
         config.showSeconds = seconds.state == .on
         config.use24HourTime = use24HourTime.state == .on
-        config.clockOpensCalendar = openCalendar.state == .on
     }
+}
+
+@MainActor
+private final class CalendarPopoverController: NSViewController {
+    private let openCalendar: () -> Void
+
+    init(openCalendar: @escaping () -> Void) {
+        self.openCalendar = openCalendar
+        super.init(nibName: nil, bundle: nil)
+        loadViewIfNeeded()
+    }
+    required init?(coder: NSCoder) { nil }
+
+    override func loadView() {
+        let root = NSView()
+        let picker = NSDatePicker()
+        picker.font = .systemFont(ofSize: 16)
+        picker.focusRingType = .none
+        picker.datePickerStyle = .clockAndCalendar
+        picker.datePickerElements = [.yearMonthDay]
+        picker.datePickerMode = .single
+        picker.dateValue = Date()
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        let button = NSButton(title: "Open Calendar", target: self, action: #selector(openSystemCalendar))
+        button.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(picker)
+        root.addSubview(button)
+        NSLayoutConstraint.activate([
+            picker.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+            picker.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+            button.topAnchor.constraint(equalTo: picker.bottomAnchor, constant: 10),
+            button.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+            button.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12),
+            root.widthAnchor.constraint(greaterThanOrEqualTo: picker.widthAnchor, constant: 24)
+        ])
+        view = root
+        root.layoutSubtreeIfNeeded()
+        preferredContentSize = root.fittingSize
+        root.setFrameSize(preferredContentSize)
+    }
+
+    @objc private func openSystemCalendar() { openCalendar() }
 }

@@ -39,7 +39,7 @@ final class CodexUsagePlugin: NSObject, PanelPlugin, NSPopoverDelegate {
         NSLayoutConstraint.activate([button.widthAnchor.constraint(equalToConstant: 126), height])
         button.setAccessibilityLabel("Codex usage details")
         popover.animates = false
-        popover.behavior = .transient
+        popover.behavior = .applicationDefined
         popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: CodexUsageDetails(state: state) { [weak self] in self?.fetch() })
     }
@@ -247,10 +247,10 @@ private struct CodexUsageDetails: View {
                 Text(state.usage?.rateLimitResetCredits?.availableCount.map { "\($0) available" } ?? "Unavailable")
                     .foregroundStyle(.secondary)
             }
-            .font(.system(size: 13))
+            .font(.system(size: 12))
             if let error = state.error {
                 Text((state.usage == nil ? "" : "Last successful data · ") + error)
-                    .font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    .font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 Spacer()
@@ -261,6 +261,7 @@ private struct CodexUsageDetails: View {
                 if state.loading { ProgressView().controlSize(.small) }
             }
         }
+        .font(.system(size: 12))
         .padding(.horizontal, 20).padding(.vertical, 14).frame(width: 320)
     }
 
@@ -273,7 +274,7 @@ private struct CodexUsageDetails: View {
             Text(resetText(window, weekly: weekly))
                 .foregroundStyle(.secondary).monospacedDigit()
         }
-        .font(.system(size: 16))
+        .font(.system(size: 12))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title), \(window.map { "\(Int($0.remaining.rounded())) percent remaining" } ?? "unavailable"), resets \(resetText(window, weekly: weekly))")
         .help("Remaining quota · Reset time")

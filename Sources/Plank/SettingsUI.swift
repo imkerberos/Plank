@@ -13,6 +13,7 @@ enum SettingsUI {
         case "showdesktop": "desktopcomputer"
         case "folder": "folder"
         case "disks": "externaldrive"
+        case "caffeinate": "cup.and.saucer"
         default: "slider.horizontal.3"
         }
     }

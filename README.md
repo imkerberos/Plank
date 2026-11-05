@@ -199,6 +199,10 @@ Click any Clock to show a calendar, then choose **Open Calendar** to launch the 
 
 Binary clock columns represent decimal digits. Read the lit dots from top to bottom as **8, 4, 2, 1**, and add them to obtain each digit. The groups are hours, minutes, and optional seconds. New panels use Binary; existing clocks keep their saved style.
 
+### Caffeinate
+
+Add **Caffeinate** from **Plugins… → Add…**. Click the cup icon to choose **Off**, **15 minutes**, **30 minutes**, **45 minutes**, **1 hour**, **2 hours**, **3 hours**, or **Forever**. While active, the cup is colored and a countdown appears above the icon. **Forever** uses a bright orange icon and stays active until you choose **Off**, disable or remove the plugin, or quit Plank. Caffeinate prevents sleep caused by inactivity; macOS may still sleep when a laptop lid is closed or Sleep is chosen from the Apple menu.
+
 ### Show Desktop
 
 Click the monitor icon to move windows aside and reveal the desktop. Click again to restore them. The panel stays visible, including when locked. No Hammerspoon setup is needed.

@@ -50,6 +50,7 @@ The app uses Swift and AppKit. UI and plugin ownership are isolated to the main 
 | `PluginSettingsWindowController.swift`, `SettingsUI.swift` | Shared settings window, name field, cards, and layout. |
 | `SettingsWindowController.swift` | Panel appearance, startup, Dock replacement, and plugin-manager entry point. |
 | `PanelMenu.swift` | Popup context menus, panel views, and inactive-panel cursor tracking. |
+| `CaffeinatePlugin.swift` | Keep-awake assertion, duration menu, and countdown display. |
 
 Each plugin owns its views and resources and implements `init(id:)`, `view`, `refresh()`, and `makeSettings(configuration:)`. Optional lifecycle hooks include `setPanelHeight`, `stop`, and plugin-specific menu items. The panel owns plugin lifetimes and stops disabled or removed instances.
 

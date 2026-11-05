@@ -318,6 +318,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let disks = plugin as? DisksPlugin {
                 disks.onChange = { [weak self] in self?.refresh() }
             }
+            if let caffeinate = plugin as? CaffeinatePlugin {
+                caffeinate.onWidthChanged = { [weak self] in self?.refresh() }
+            }
             plugin.setPanelHeight(height)
             plugin.refresh()
             if let disks = plugin as? DisksPlugin, disks.shouldHide { continue }

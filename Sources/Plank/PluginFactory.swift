@@ -22,6 +22,7 @@ private func pluginType(for kind: String) -> any PanelPlugin.Type {
     case "folder": FolderPlugin.self
     case "disks": DisksPlugin.self
     case "codexusage": CodexUsagePlugin.self
+    case "caffeinate": CaffeinatePlugin.self
     default: TrashPlugin.self
     }
 }

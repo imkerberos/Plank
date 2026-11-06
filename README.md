@@ -201,7 +201,7 @@ Binary clock columns represent decimal digits. Read the lit dots from top to bot
 
 ### Caffeinate
 
-Add **Caffeinate** from **Plugins… → Add…**. Click the cup icon to choose **Off**, **15 minutes**, **30 minutes**, **45 minutes**, **1 hour**, **2 hours**, **3 hours**, or **Forever**. While active, the cup is colored and a countdown appears above the icon. **Forever** uses a bright orange icon and stays active until you choose **Off**, disable or remove the plugin, or quit Plank. Caffeinate prevents sleep caused by inactivity; macOS may still sleep when a laptop lid is closed or Sleep is chosen from the Apple menu.
+Add **Caffeinate** from **Plugins… → Add…**. Click the cup icon to open its menu. The first item, **Prevent Screen Lock**, keeps the display awake and avoids automatic locking from inactivity, independently of the duration choices. It stays active until toggled off, the plugin is disabled or removed, or Plank quits; manual locking remains available. A separator divides it from **Off**, **15 minutes**, **30 minutes**, **45 minutes**, **1 hour**, **2 hours**, **3 hours**, and **Forever**. While a duration is active, the cup is colored and its countdown appears above the icon. **Forever** uses a bright orange icon and stays active until you choose **Off**, disable or remove the plugin, or quit Plank. macOS may still sleep when a laptop lid is closed or Sleep is chosen from the Apple menu.
 
 ### Show Desktop
 

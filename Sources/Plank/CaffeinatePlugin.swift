@@ -36,7 +36,11 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
     private var duration: CaffeinateDuration = .off
     private var endDate: Date?
     private var assertionID: IOPMAssertionID?
+    private var displayAssertionID: IOPMAssertionID?
+    private var userActivityAssertionID: IOPMAssertionID?
+    private var preventsScreenLock = false
     private var timer: Timer?
+    private var userActivityTimer: Timer?
     var view: NSView { button }
 
     init(id: String) {
@@ -70,13 +74,20 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
     func stop() {
         timer?.invalidate()
         timer = nil
+        userActivityTimer?.invalidate()
+        userActivityTimer = nil
         releaseAssertion()
+        releaseDisplayAssertion()
+        releaseUserActivityAssertion()
         duration = .off
         endDate = nil
+        preventsScreenLock = false
         updateDisplay(notifyWidthChange: false)
     }
 
     func addMenuItems(to menu: NSMenu) {
+        menu.addItem(.separator())
+        addPreventScreenLockItem(to: menu)
         menu.addItem(.separator())
         addDurationItems(to: menu)
     }
@@ -85,6 +96,7 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
         let settings = PluginSettingsContent(sectionTitle: "How It Works", windowHeight: 390)
         settings.options = [
             SettingsUI.help("Click the coffee icon to choose how long to keep your Mac awake. The countdown appears above the icon."),
+            SettingsUI.help("Prevent Screen Lock keeps the display awake and avoids automatic idle locking independently of the duration choices. It stays active until toggled off, the plugin is disabled or removed, or Plank quits. Manual locking remains available."),
             SettingsUI.help("Forever keeps the Mac awake until you turn this plugin off, disable or remove it, or quit Plank."),
             SettingsUI.help("This prevents sleep caused by inactivity. It does not prevent sleep when you close a Mac laptop’s lid or choose Sleep from macOS.")
         ]
@@ -94,14 +106,19 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
     @objc private func showDurationMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        let heading = menu.addItem(withTitle: "Keep Mac Awake", action: nil, keyEquivalent: "")
-        heading.isEnabled = false
+        addPreventScreenLockItem(to: menu)
         menu.addItem(.separator())
         addDurationItems(to: menu)
         let event = NSApp.currentEvent.flatMap {
             $0.type == .leftMouseUp || $0.type == .leftMouseDown ? $0 : nil
         }
         PanelMenu.show(menu, from: button, event: event)
+    }
+
+    private func addPreventScreenLockItem(to menu: NSMenu) {
+        let item = menu.addItem(withTitle: "Prevent Screen Lock", action: #selector(togglePreventScreenLock), keyEquivalent: "")
+        item.target = self
+        item.state = preventsScreenLock ? .on : .off
     }
 
     private func addDurationItems(to menu: NSMenu) {
@@ -111,6 +128,51 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
             item.representedObject = option.rawValue
             item.state = option == duration ? .on : .off
         }
+    }
+
+    @objc private func togglePreventScreenLock() {
+        let shouldPrevent = !preventsScreenLock
+        if shouldPrevent {
+            var newAssertion: IOPMAssertionID = 0
+            let result = IOPMAssertionCreateWithName(
+                kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+                IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                "Plank Prevent Screen Lock" as CFString,
+                &newAssertion
+            )
+            guard result == kIOReturnSuccess else {
+                showError("macOS could not prevent idle screen locking (error \(result)).")
+                return
+            }
+
+            var userActivityAssertion: IOPMAssertionID = 0
+            let activityResult = IOPMAssertionDeclareUserActivity(
+                "Plank Prevent Screen Lock" as CFString,
+                kIOPMUserActiveLocal,
+                &userActivityAssertion
+            )
+            guard activityResult == kIOReturnSuccess else {
+                IOPMAssertionRelease(newAssertion)
+                showError("macOS could not reset the idle activity timer (error \(activityResult)).")
+                return
+            }
+
+            displayAssertionID = newAssertion
+            userActivityAssertionID = userActivityAssertion
+            preventsScreenLock = true
+            let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.declareUserActivity() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            userActivityTimer = timer
+        } else {
+            userActivityTimer?.invalidate()
+            userActivityTimer = nil
+            releaseDisplayAssertion()
+            releaseUserActivityAssertion()
+            preventsScreenLock = false
+        }
+        updateDisplay()
     }
 
     @objc private func selectDuration(_ sender: NSMenuItem) {
@@ -161,12 +223,13 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
     }
 
     private func updateDisplay(notifyWidthChange: Bool = true) {
-        let active = duration != .off
+        let active = duration != .off || preventsScreenLock
         let symbol = active ? "cup.and.saucer.fill" : "cup.and.saucer"
         let tint: NSColor = duration == .forever ? .systemOrange : (active ? .controlAccentColor : .tertiaryLabelColor)
         let displayText = countdownText
-        let status = duration == .forever ? "Forever" : displayText
-        button.toolTip = active ? "Keep Mac Awake · \(status) · Click to change"
+        let status = duration == .forever ? "Forever" : (duration == .off && preventsScreenLock ? "Preventing Screen Lock" : displayText)
+        let lockStatus = preventsScreenLock ? " · Prevent Screen Lock" : ""
+        button.toolTip = active ? "Keep Mac Awake · \(status)\(lockStatus) · Click to change"
             : "Keep Mac Awake · Off · Click to choose a duration"
         button.setAccessibilityLabel("Keep Mac Awake")
         button.setAccessibilityValue(active ? status : "Off")
@@ -199,6 +262,29 @@ final class CaffeinatePlugin: NSObject, PanelPlugin {
         guard let assertionID else { return }
         IOPMAssertionRelease(assertionID)
         self.assertionID = nil
+    }
+
+    private func releaseDisplayAssertion() {
+        guard let displayAssertionID else { return }
+        IOPMAssertionRelease(displayAssertionID)
+        self.displayAssertionID = nil
+    }
+
+    private func declareUserActivity() {
+        guard preventsScreenLock else { return }
+        var assertionID = userActivityAssertionID ?? 0
+        let result = IOPMAssertionDeclareUserActivity(
+            "Plank Prevent Screen Lock" as CFString,
+            kIOPMUserActiveLocal,
+            &assertionID
+        )
+        if result == kIOReturnSuccess { userActivityAssertionID = assertionID }
+    }
+
+    private func releaseUserActivityAssertion() {
+        guard let userActivityAssertionID else { return }
+        IOPMAssertionRelease(userActivityAssertionID)
+        self.userActivityAssertionID = nil
     }
 
     private func showError(_ message: String) {

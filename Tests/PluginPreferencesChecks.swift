@@ -11,6 +11,7 @@ struct PluginPreferencesChecks {
         testDefaultPluginOrder()
         testShowDesktopPluginLifecycle()
         testFolderSettings()
+        testFolderGridContents()
         testMountedDisks()
         testTaskbarWindowOrder()
         testClockStyles()
@@ -182,13 +183,50 @@ struct PluginPreferencesChecks {
             let first = PluginPreferences.add(kind: "folder")
             let second = PluginPreferences.add(kind: "folder")
             precondition(PluginPreferences.configuration(first)?.folderPath == nil)
-            PluginPreferences.update(first) { $0.folderPath = "/Users/example/Documents" }
+            precondition(PluginPreferences.configuration(first)?.folderGridLimit == 32)
+            PluginPreferences.update(first) {
+                $0.folderPath = "/Users/example/Documents"
+                $0.folderMaximumItems = 64
+            }
+            precondition(PluginPreferences.configuration(first)?.folderGridLimit == 64)
+            precondition(PluginPreferences.configuration(second)?.folderGridLimit == 32)
+            var old = try! JSONDecoder().decode(PluginConfiguration.self, from: Data(#"{"id":"old","kind":"folder","name":"Folder","enabled":true,"separatorStyle":"line","spaceWidth":24,"expand":false,"showSeconds":false}"#.utf8))
+            precondition(old.folderGridLimit == 32)
+            old.folderMaximumItems = -1
+            precondition(old.folderGridLimit == 1)
+            old.folderMaximumItems = Int.max
+            precondition(old.folderGridLimit == 128)
             PluginPreferences.update(second) { $0.folderPath = "/Users/example/Downloads" }
             precondition(PluginPreferences.configuration(first)?.folderPath == "/Users/example/Documents")
             precondition(PluginPreferences.configuration(second)?.folderPath == "/Users/example/Downloads")
             PluginPreferences.remove(first)
             precondition(PluginPreferences.configuration(second)?.folderPath == "/Users/example/Downloads")
         }
+    }
+
+    static func testFolderGridContents() {
+        let manager = FileManager.default
+        let root = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try! manager.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? manager.removeItem(at: root) }
+        let empty = try! FolderGridContents(folder: root, limit: 32)
+        precondition(empty.items.isEmpty && !empty.hasMore)
+        for index in 1...32 {
+            try! Data().write(to: root.appendingPathComponent("file\(index).txt"))
+        }
+        try! Data().write(to: root.appendingPathComponent(".hidden"))
+        let exact = try! FolderGridContents(folder: root, limit: 32)
+        precondition(exact.items.count == 32 && !exact.hasMore)
+        precondition(exact.items[1].lastPathComponent == "file2.txt")
+        let child = root.appendingPathComponent("child", isDirectory: true)
+        try! manager.createDirectory(at: child, withIntermediateDirectories: false)
+        let overflow = try! FolderGridContents(folder: root, limit: 32)
+        precondition(overflow.items.count == 32 && overflow.hasMore)
+        precondition(overflow.items.first?.resolvingSymlinksInPath().path == child.resolvingSymlinksInPath().path)
+        precondition(try! FolderGridContents(folder: child, limit: 32).items.isEmpty)
+        precondition(try! FolderGridContents(folder: root, limit: 64).items.count == 33)
+        try! manager.removeItem(at: child)
+        precondition((try? FolderGridContents(folder: child, limit: 32)) == nil)
     }
 
     @MainActor

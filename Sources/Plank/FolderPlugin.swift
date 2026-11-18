@@ -54,7 +54,7 @@ final class FolderPlugin: NSObject, PanelPlugin {
         let configuration = PluginPreferences.configuration(id)
         let controller = FolderGridController(
             folder: Self.folderURL(for: configuration),
-            limit: configuration?.folderGridLimit ?? 32,
+            screenSize: button.window?.screen?.visibleFrame.size ?? NSSize(width: 1000, height: 800),
             openFinder: { [weak self] url in self?.openFolderInFinder(url) },
             close: { [weak self] in self?.popover.close() })
         popover.contentViewController = controller
@@ -107,8 +107,6 @@ final class FolderPlugin: NSObject, PanelPlugin {
 @MainActor
 private final class FolderSettings: PluginSettingsContent {
     private var folderURL: URL
-    private let maximum = NSPopUpButton()
-    private var limits = [8, 16, 32, 64, 128]
     private let path = NSTextField(wrappingLabelWithString: "")
 
     init(configuration: PluginConfiguration) {
@@ -118,18 +116,8 @@ private final class FolderSettings: PluginSettingsContent {
         path.isSelectable = true
         path.setAccessibilityLabel("Folder path")
         let choose = NSButton(title: "Choose Folder…", target: self, action: #selector(chooseFolder))
-        if !limits.contains(configuration.folderGridLimit) {
-            limits.append(configuration.folderGridLimit)
-            limits.sort()
-        }
-        maximum.addItems(withTitles: limits.map(String.init))
-        maximum.selectItem(at: limits.firstIndex(of: configuration.folderGridLimit) ?? 2)
-        maximum.target = self
-        maximum.action = #selector(requestSave)
-        maximum.setAccessibilityLabel("Maximum items in grid")
         options = [path, SettingsUI.row("", control: choose),
-                   SettingsUI.row("Maximum items in grid", control: maximum),
-                   SettingsUI.help("Click the panel icon to browse a grid. Click folders to go inside and files to open them. Overflow (…) and Open with Finder open the current folder in Finder. Each instance has its own location and item limit.")]
+                   SettingsUI.help("Click the panel icon to browse a grid. Click folders to go inside and files to open them. Scroll to see all items; Open in Finder is always last. The preview uses at most a quarter of the screen. Each instance has its own location.")]
     }
 
     @objc private func chooseFolder() {
@@ -149,32 +137,46 @@ private final class FolderSettings: PluginSettingsContent {
 
     override func save(to configuration: inout PluginConfiguration) {
         configuration.folderPath = folderURL.path
-        configuration.folderMaximumItems = limits[maximum.indexOfSelectedItem]
     }
 }
 
 /// A fresh directory snapshot is loaded for every navigation, including Back.
 struct FolderGridContents {
     let items: [URL]
-    let hasMore: Bool
-
-    init(folder: URL, limit: Int) throws {
-        let urls = try FileManager.default.contentsOfDirectory(
+    init(folder: URL) throws {
+        items = try FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.isDirectoryKey, .isPackageKey],
             options: [.skipsHiddenFiles]).sorted {
                 $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
             }
-        let count = max(1, limit)
-        items = Array(urls.prefix(count))
-        hasMore = urls.count > count
+    }
+}
+
+struct FolderGridLayout {
+    let columns: Int
+    let size: NSSize
+    let contentHeight: CGFloat
+
+    init(itemCount: Int, messageHeight: CGFloat = 0, screenSize: NSSize) {
+        // Leave room for the popover border and arrow inside the quarter-screen budget.
+        let maximumSide = max(1, min(sqrt(screenSize.width * screenSize.height / 4) - 32,
+                                     screenSize.width - 64, screenSize.height - 80))
+        let maximumColumns = max(1, Int((maximumSide - 40) / 104))
+        let count = max(1, itemCount)
+        columns = min(maximumColumns, max(1, Int(ceil(sqrt(Double(count))))))
+        contentHeight = messageHeight + CGFloat((count + columns - 1) / columns) * 104
+        // Fit the actual columns; adding height must never widen sparse rows.
+        let width = CGFloat(columns) * 104 + 40
+        let maximumHeight = min(maximumSide, width + 20 + messageHeight)
+        size = NSSize(width: width, height: min(contentHeight + 60, maximumHeight))
     }
 }
 
 @MainActor
-private final class FolderGridController: NSViewController {
+final class FolderGridController: NSViewController {
     var onResize: ((NSSize) -> Void)?
     private var folder: URL
-    private let limit: Int
+    private let screenSize: NSSize
     private let openFinder: (URL) -> Void
     private let close: () -> Void
     private var history: [URL] = []
@@ -184,9 +186,9 @@ private final class FolderGridController: NSViewController {
     private var columns = 5
     private let scroll = NSScrollView()
 
-    init(folder: URL, limit: Int, openFinder: @escaping (URL) -> Void, close: @escaping () -> Void) {
+    init(folder: URL, screenSize: NSSize, openFinder: @escaping (URL) -> Void, close: @escaping () -> Void) {
         self.folder = folder
-        self.limit = limit
+        self.screenSize = screenSize
         self.openFinder = openFinder
         self.close = close
         super.init(nibName: nil, bundle: nil)
@@ -211,11 +213,29 @@ private final class FolderGridController: NSViewController {
         tiles = []
         actions = []
         selected = -1
-        let screen = view.window?.screen ?? NSScreen.main
-        let available = screen?.visibleFrame.size ?? NSSize(width: 1000, height: 800)
-        columns = max(2, min(5, Int((available.width - 64) / 104)))
-        // Reserve a gutter for systems configured to always show scroll bars.
-        let width = CGFloat(columns) * 104 + 40
+        let screen = view.window?.screen
+        let available = screen?.visibleFrame.size ?? screenSize
+        let document = FolderGridKeyboardView()
+        var message: String?
+        do {
+            let contents = try FolderGridContents(folder: folder)
+            for url in contents.items {
+                addTile(title: FileManager.default.displayName(atPath: url.path),
+                        image: NSWorkspace.shared.icon(forFile: url.path), tooltip: url.path) { [weak self] in
+                    self?.open(url)
+                }
+            }
+            if contents.items.isEmpty { message = "This folder is empty." }
+        } catch {
+            message = "Unable to read this folder. \(error.localizedDescription)"
+        }
+        addTile(title: "Open in Finder", image: FolderGridIcons.openInFinder, tooltip: "Open \(folder.path) with Finder") {
+            [weak self] in self?.showFinder()
+        }
+        let offset: CGFloat = message == nil ? 0 : 60
+        let layout = FolderGridLayout(itemCount: tiles.count, messageHeight: offset, screenSize: available)
+        columns = layout.columns
+        let width = layout.size.width
         let header = NSTextField(labelWithString: FileManager.default.displayName(atPath: folder.path))
         header.font = .systemFont(ofSize: 15, weight: .semibold)
         header.lineBreakMode = .byTruncatingMiddle
@@ -230,57 +250,62 @@ private final class FolderGridController: NSViewController {
         back.frame = NSRect(x: 12, y: 10, width: 32, height: 30)
         back.toolTip = "Back"
         view.addSubview(back)
-        let document = FolderGridKeyboardView()
-        var message: String?
-        do {
-            let contents = try FolderGridContents(folder: folder, limit: limit)
-            for url in contents.items {
-                addTile(title: FileManager.default.displayName(atPath: url.path),
-                        image: NSWorkspace.shared.icon(forFile: url.path), tooltip: url.path) { [weak self] in
-                    self?.open(url)
-                }
-            }
-            if contents.items.isEmpty { message = "This folder is empty." }
-            if contents.hasMore {
-                addTile(title: "...", image: NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil),
-                        tooltip: "Show all items in Finder") { [weak self] in self?.showFinder() }
-            }
-        } catch {
-            message = "Unable to read this folder. \(error.localizedDescription)"
-        }
-        let finderIcon = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.finder")
-            .map { NSWorkspace.shared.icon(forFile: $0.path) }
-        addTile(title: "Open with Finder", image: finderIcon, tooltip: "Open \(folder.path) with Finder") {
-            [weak self] in self?.showFinder()
-        }
-        var offset: CGFloat = 0
         if let message {
             let label = NSTextField(wrappingLabelWithString: message)
             label.textColor = .secondaryLabelColor
             label.font = .systemFont(ofSize: 12)
             label.frame = NSRect(x: 12, y: 4, width: width - 48, height: 52)
             document.addSubview(label)
-            offset = 60
         }
         for (index, tile) in tiles.enumerated() {
             tile.frame = NSRect(x: CGFloat(index % columns) * 104,
                                 y: offset + CGFloat(index / columns) * 104, width: 104, height: 104)
             document.addSubview(tile)
         }
-        let contentHeight = offset + CGFloat((tiles.count + columns - 1) / columns) * 104
-        let height = min(contentHeight, max(104, available.height - 180))
+        let contentHeight = layout.contentHeight
+        let height = layout.size.height - 60
         document.frame = NSRect(x: 0, y: 0, width: width - 24, height: contentHeight)
         scroll.frame = NSRect(x: 12, y: 48, width: width - 24, height: height)
+        if !(scroll.contentView is FolderGridClipView) {
+            let clip = FolderGridClipView()
+            clip.onPointerChanged = { [weak self] point in self?.updateHover(at: point) }
+            clip.postsBoundsChangedNotifications = true
+            scroll.contentView = clip
+            NotificationCenter.default.addObserver(self, selector: #selector(scrolled(_:)),
+                name: NSView.boundsDidChangeNotification, object: clip)
+        }
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
         scroll.autohidesScrollers = true
         scroll.documentView = document
         view.addSubview(scroll)
         scroll.contentView.scroll(to: .zero)
         scroll.reflectScrolledClipView(scroll.contentView)
         preferredContentSize = NSSize(width: width, height: height + 60)
-        view.setFrameSize(preferredContentSize)
+        // Once presented, let NSPopover resize its content view. Resizing the view
+        // first makes AppKit restore the previous popover size on its next layout.
+        if view.window == nil { view.setFrameSize(preferredContentSize) }
         onResize?(preferredContentSize)
+        updateHover()
+    }
+
+    @objc private func scrolled(_ notification: Notification) {
+        // Scrolling can move another tile under a stationary pointer without a mouse event.
+        updateHover()
+    }
+
+    private func updateHover(at point: NSPoint? = nil) {
+        guard let window = scroll.window, window.isVisible else {
+            tiles.forEach { $0.isHovered = false }
+            return
+        }
+        let location = point ?? window.mouseLocationOutsideOfEventStream
+        let clip = scroll.contentView
+        let inside = clip.bounds.contains(clip.convert(location, from: nil))
+        for tile in tiles {
+            tile.isHovered = inside && tile.bounds.contains(tile.convert(location, from: nil))
+        }
     }
 
     private func addTile(title: String, image: NSImage?, tooltip: String, action: @escaping () -> Void) {
@@ -336,7 +361,7 @@ private final class FolderGridController: NSViewController {
         case 123, 124, 125, 126:
             let delta = event.keyCode == 123 ? -1 : event.keyCode == 124 ? 1 : event.keyCode == 125 ? columns : -columns
             selected = selected < 0 ? 0 : min(tiles.count - 1, max(0, selected + delta))
-            for (index, tile) in tiles.enumerated() { tile.highlightCell(index == selected) }
+            for (index, tile) in tiles.enumerated() { tile.isKeyboardSelected = index == selected }
             tiles[selected].scrollToVisible(tiles[selected].bounds)
         default: break
         }
@@ -355,14 +380,17 @@ private final class FolderGridKeyboardView: NSView {
 
 @MainActor
 private final class FolderGridTile: NSButton {
-    private var hoverArea: NSTrackingArea?
+    var isHovered = false { didSet { if oldValue != isHovered { updateHighlight() } } }
+    var isKeyboardSelected = false { didSet { if oldValue != isKeyboardSelected { updateHighlight() } } }
+
+    override var isFlipped: Bool { true }
 
     init(title: String, icon: NSImage?) {
         super.init(frame: .zero)
         self.title = ""
         isBordered = false
         setAccessibilityLabel(title)
-        let image = NSImageView(frame: NSRect(x: 28, y: 40, width: 48, height: 48))
+        let image = NSImageView(frame: NSRect(x: 28, y: 12, width: 48, height: 48))
         image.image = icon
         image.imageScaling = .scaleProportionallyUpOrDown
         addSubview(image)
@@ -371,7 +399,7 @@ private final class FolderGridTile: NSButton {
         label.alignment = .center
         label.maximumNumberOfLines = 2
         label.lineBreakMode = .byTruncatingMiddle
-        label.frame = NSRect(x: 4, y: 5, width: 96, height: 32)
+        label.frame = NSRect(x: 4, y: 65, width: 96, height: 32)
         addSubview(label)
     }
     required init?(coder: NSCoder) { nil }
@@ -379,18 +407,66 @@ private final class FolderGridTile: NSButton {
     override func hitTest(_ point: NSPoint) -> NSView? {
         super.hitTest(point) == nil ? nil : self
     }
+    private func updateHighlight() {
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.backgroundColor = isHovered || isKeyboardSelected
+            ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+    }
+}
+
+/// Keep short directory snapshots pinned to the leading, top edge of the viewport.
+@MainActor
+private final class FolderGridClipView: NSClipView {
+    var onPointerChanged: ((NSPoint) -> Void)?
+    private var hoverArea: NSTrackingArea?
+    override var isFlipped: Bool { true }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let hoverArea { removeTrackingArea(hoverArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        let area = NSTrackingArea(rect: .zero,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect], owner: self)
         addTrackingArea(area)
         hoverArea = area
     }
-    func highlightCell(_ highlighted: Bool) {
-        wantsLayer = true
-        layer?.cornerRadius = 8
-        layer?.backgroundColor = highlighted ? NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor : nil
+
+    override func mouseEntered(with event: NSEvent) { onPointerChanged?(event.locationInWindow) }
+    override func mouseMoved(with event: NSEvent) { onPointerChanged?(event.locationInWindow) }
+    override func mouseExited(with event: NSEvent) { onPointerChanged?(event.locationInWindow) }
+
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var result = super.constrainBoundsRect(proposedBounds)
+        if let documentView {
+            if documentView.frame.width <= result.width { result.origin.x = 0 }
+            if documentView.frame.height <= result.height { result.origin.y = 0 }
+        }
+        return result
     }
-    override func mouseEntered(with event: NSEvent) { highlightCell(true) }
-    override func mouseExited(with event: NSEvent) { highlightCell(false) }
+}
+
+@MainActor
+private enum FolderGridIcons {
+    static let openInFinder: NSImage = {
+        let resources = Bundle(path: "/System/Library/CoreServices/Dock.app")
+        let arrow = resources?.url(forResource: "openinfinder", withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) }
+            ?? NSImage(systemSymbolName: "arrowshape.turn.up.right.circle", accessibilityDescription: nil)
+        let size = NSSize(width: 64, height: 64)
+        let rect = NSRect(origin: .zero, size: size)
+        let glyph = NSImage(size: size)
+        glyph.lockFocus()
+        arrow?.draw(in: rect)
+        NSColor.gray.setFill()
+        rect.fill(using: .sourceIn)
+        glyph.unlockFocus()
+
+        let tile = NSImage(size: size)
+        tile.lockFocus()
+        NSColor.white.setFill()
+        NSBezierPath(roundedRect: rect.insetBy(dx: 4, dy: 4), xRadius: 10, yRadius: 10).fill()
+        glyph.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+        tile.unlockFocus()
+        return tile
+    }()
 }

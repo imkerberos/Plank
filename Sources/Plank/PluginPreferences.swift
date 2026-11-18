@@ -20,11 +20,8 @@ struct PluginConfiguration: Codable, Equatable, Identifiable {
     var launcherShowRunningIndicator: Bool?
     var imenuViewMode: String?
     var folderPath: String?
-    var folderMaximumItems: Int?
     var disksHideWhenEmpty: Bool?
     var codexHomePath: String?
-
-    var folderGridLimit: Int { min(128, max(1, folderMaximumItems ?? 32)) }
 
     var imenuShowsIcons: Bool { imenuViewMode == "icons" }
 

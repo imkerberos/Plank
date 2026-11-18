@@ -12,6 +12,7 @@ struct PluginPreferencesChecks {
         testShowDesktopPluginLifecycle()
         testFolderSettings()
         testFolderGridContents()
+        try! testFolderGridNavigation()
         testMountedDisks()
         testTaskbarWindowOrder()
         testClockStyles()
@@ -183,19 +184,9 @@ struct PluginPreferencesChecks {
             let first = PluginPreferences.add(kind: "folder")
             let second = PluginPreferences.add(kind: "folder")
             precondition(PluginPreferences.configuration(first)?.folderPath == nil)
-            precondition(PluginPreferences.configuration(first)?.folderGridLimit == 32)
-            PluginPreferences.update(first) {
-                $0.folderPath = "/Users/example/Documents"
-                $0.folderMaximumItems = 64
-            }
-            precondition(PluginPreferences.configuration(first)?.folderGridLimit == 64)
-            precondition(PluginPreferences.configuration(second)?.folderGridLimit == 32)
-            var old = try! JSONDecoder().decode(PluginConfiguration.self, from: Data(#"{"id":"old","kind":"folder","name":"Folder","enabled":true,"separatorStyle":"line","spaceWidth":24,"expand":false,"showSeconds":false}"#.utf8))
-            precondition(old.folderGridLimit == 32)
-            old.folderMaximumItems = -1
-            precondition(old.folderGridLimit == 1)
-            old.folderMaximumItems = Int.max
-            precondition(old.folderGridLimit == 128)
+            PluginPreferences.update(first) { $0.folderPath = "/Users/example/Documents" }
+            let old = try! JSONDecoder().decode(PluginConfiguration.self, from: Data(#"{"id":"old","kind":"folder","name":"Folder","enabled":true,"separatorStyle":"line","spaceWidth":24,"expand":false,"showSeconds":false,"folderMaximumItems":32}"#.utf8))
+            precondition(old.kind == "folder")
             PluginPreferences.update(second) { $0.folderPath = "/Users/example/Downloads" }
             precondition(PluginPreferences.configuration(first)?.folderPath == "/Users/example/Documents")
             precondition(PluginPreferences.configuration(second)?.folderPath == "/Users/example/Downloads")
@@ -209,24 +200,98 @@ struct PluginPreferencesChecks {
         let root = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try! manager.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? manager.removeItem(at: root) }
-        let empty = try! FolderGridContents(folder: root, limit: 32)
-        precondition(empty.items.isEmpty && !empty.hasMore)
+        let empty = try! FolderGridContents(folder: root)
+        precondition(empty.items.isEmpty)
         for index in 1...32 {
             try! Data().write(to: root.appendingPathComponent("file\(index).txt"))
         }
         try! Data().write(to: root.appendingPathComponent(".hidden"))
-        let exact = try! FolderGridContents(folder: root, limit: 32)
-        precondition(exact.items.count == 32 && !exact.hasMore)
+        let exact = try! FolderGridContents(folder: root)
+        precondition(exact.items.count == 32)
         precondition(exact.items[1].lastPathComponent == "file2.txt")
         let child = root.appendingPathComponent("child", isDirectory: true)
         try! manager.createDirectory(at: child, withIntermediateDirectories: false)
-        let overflow = try! FolderGridContents(folder: root, limit: 32)
-        precondition(overflow.items.count == 32 && overflow.hasMore)
+        let overflow = try! FolderGridContents(folder: root)
+        precondition(overflow.items.count == 33)
         precondition(overflow.items.first?.resolvingSymlinksInPath().path == child.resolvingSymlinksInPath().path)
-        precondition(try! FolderGridContents(folder: child, limit: 32).items.isEmpty)
-        precondition(try! FolderGridContents(folder: root, limit: 64).items.count == 33)
+        precondition(try! FolderGridContents(folder: child).items.isEmpty)
+        precondition(try! FolderGridContents(folder: root).items.count == 33)
+        for screen in [NSSize(width: 1440, height: 900), NSSize(width: 2560, height: 1440),
+                       NSSize(width: 900, height: 1440), NSSize(width: 800, height: 600)] {
+            for count in [1, 3, 32, 100, 1000] {
+                let layout = FolderGridLayout(itemCount: count, screenSize: screen)
+                precondition(layout.size.height <= layout.contentHeight + 60)
+                precondition((layout.size.width + 32) * (layout.size.height + 32) <= screen.width * screen.height / 4 + 1)
+                precondition(CGFloat(layout.columns) * 104 + 40 == layout.size.width)
+                if count >= 100 { precondition(layout.contentHeight > layout.size.height - 60) }
+            }
+        }
+        let smallScreen = NSSize(width: 1440, height: 900)
+        let single = FolderGridLayout(itemCount: 1, screenSize: smallScreen)
+        precondition(single.size == NSSize(width: 144, height: 164))
+        let emptyFolder = FolderGridLayout(itemCount: 1, messageHeight: 60, screenSize: smallScreen)
+        precondition(emptyFolder.size == NSSize(width: 144, height: 224))
+        let pair = FolderGridLayout(itemCount: 2, screenSize: smallScreen)
+        precondition(pair.size == NSSize(width: 248, height: 164))
+        let few = FolderGridLayout(itemCount: 3, screenSize: smallScreen)
+        precondition(few.size == NSSize(width: 248, height: 268))
+        let many = FolderGridLayout(itemCount: 100, screenSize: smallScreen)
+        precondition(many.size.width == CGFloat(many.columns) * 104 + 40)
+        precondition(many.size.height <= many.size.width + 20)
         try! manager.removeItem(at: child)
-        precondition((try? FolderGridContents(folder: child, limit: 32)) == nil)
+        precondition((try? FolderGridContents(folder: child)) == nil)
+    }
+
+    @MainActor
+    static func testFolderGridNavigation() throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let small = root.appendingPathComponent("Small", isDirectory: true)
+        let large = small.appendingPathComponent("Large", isDirectory: true)
+        try FileManager.default.createDirectory(at: large, withIntermediateDirectories: true)
+        for folder in [root, large] {
+            for index in 1...100 { try Data().write(to: folder.appendingPathComponent("file\(index).txt")) }
+        }
+        let screen = NSScreen.main!
+        let host = NSWindow(contentRect: NSRect(x: screen.visibleFrame.midX, y: screen.visibleFrame.minY + 60, width: 80, height: 44), styleMask: [.borderless], backing: .buffered, defer: false)
+        host.orderFront(nil)
+        defer { host.orderOut(nil) }
+        let popover = NSPopover()
+        defer { popover.close() }
+        popover.animates = false
+        popover.behavior = .applicationDefined
+        let controller = FolderGridController(folder: root, screenSize: screen.visibleFrame.size, openFinder: { _ in }, close: {})
+        popover.contentViewController = controller
+        controller.onResize = { [weak popover] in popover?.contentSize = $0 }
+        popover.contentSize = controller.preferredContentSize
+        popover.show(relativeTo: host.contentView!.bounds, of: host.contentView!, preferredEdge: .maxY)
+        func settle() { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15)) }
+        func tiles() -> [NSButton] {
+            controller.view.subviews.compactMap { $0 as? NSScrollView }.first!.documentView!.subviews.compactMap { $0 as? NSButton }
+        }
+        func verify(_ count: Int, _ label: String) {
+            settle()
+            let expected = FolderGridLayout(itemCount: count, screenSize: screen.visibleFrame.size).size
+            precondition(popover.contentSize == expected, "\(label): popover must resize with the current folder")
+            precondition(controller.view.bounds.size == expected, "\(label): content and popover sizes must match")
+            let scroll = controller.view.subviews.compactMap { $0 as? NSScrollView }.first!
+            precondition(scroll.frame == NSRect(x: 12, y: 48, width: expected.width - 24, height: expected.height - 60))
+            precondition(scroll.contentView.bounds.origin == .zero)
+            precondition(tiles().count == count)
+        }
+        func back() {
+            controller.view.subviews.compactMap { $0 as? NSButton }.first!.performClick(nil)
+        }
+        verify(102, "Parent")
+        tiles().first { $0.accessibilityLabel() == "Small" }!.performClick(nil)
+        verify(2, "Small child")
+        tiles().first { $0.accessibilityLabel() == "Large" }!.performClick(nil)
+        verify(101, "Large grandchild")
+        back()
+        verify(2, "Back to small")
+        back()
+        verify(102, "Back to parent")
     }
 
     @MainActor
